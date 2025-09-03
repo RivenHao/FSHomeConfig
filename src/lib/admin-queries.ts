@@ -89,42 +89,58 @@ export async function getVideoSubmissions(params: PaginationParams & FilterParam
 
 // 获取心得列表（包含关联数据）
 export async function getMoveTips(params: PaginationParams & FilterParams) {
+  // 先查询心得数据
   let query = supabase
     .from(TABLES.MOVE_TIPS)
-    .select(`
-      *,
-      user:user_profiles!move_tips_user_id_fkey(nickname, email),
-      move:moves!move_tips_move_id_fkey(move_name, main_type)
-    `, { count: 'exact' });
+    .select('*', { count: 'exact' });
 
   // 应用筛选条件
   if (params.status) {
     if (params.status === 'approved') {
       query = query.eq('is_approved', true);
     } else if (params.status === 'pending') {
+      // 待审核：is_approved = false
       query = query.eq('is_approved', false);
     }
-  }
-  if (params.move_type) {
-    query = query.eq('moves.main_type', params.move_type);
-  }
-  if (params.date_range && params.date_range.length === 2) {
-    query = query.gte('created_at', params.date_range[0])
-                 .lte('created_at', params.date_range[1]);
-  }
-  if (params.search) {
-    query = query.or(`moves.move_name.ilike.%${params.search}%,user_profiles.nickname.ilike.%${params.search}%`);
   }
 
   // 应用分页
   const from = (params.page - 1) * params.pageSize;
   const to = from + params.pageSize - 1;
   
-  const { data, error, count } = await query
+  const { data: tips, error, count } = await query
     .range(from, to)
     .order('created_at', { ascending: false });
 
-  return { data, error, total: count || 0 };
+  if (error || !tips) {
+    return { data: null, error, total: count || 0 };
+  }
+
+  // 分别查询用户信息和招式信息
+  const enrichedData = await Promise.all(
+    tips.map(async (tip) => {
+      const [userResult, moveResult] = await Promise.all([
+        supabase
+          .from(TABLES.USER_PROFILES)
+          .select('nickname, email')
+          .eq('id', tip.user_id)
+          .single(),
+        supabase
+          .from(TABLES.MOVES)
+          .select('move_name, main_type, sub_type')
+          .eq('id', tip.move_id)
+          .single()
+      ]);
+
+      return {
+        ...tip,
+        user_profiles: userResult.data || { nickname: '未知用户', email: '未知邮箱' },
+        moves: moveResult.data || { move_name: '未知招式', main_type: '未知', sub_type: '未知' }
+      };
+    })
+  );
+
+  return { data: enrichedData, error: null, total: count || 0 };
 }
 
 // 审核视频提交
@@ -282,17 +298,26 @@ export async function reviewVideoSubmission(id: string, status: 'approved' | 're
 
 // 审核心得
 export async function reviewMoveTip(id: string, isApproved: boolean) {
-  const { data, error } = await supabase
-    .from(TABLES.MOVE_TIPS)
-    .update({
-      is_approved: isApproved,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    // 最简单的更新，只更新 is_approved 字段，不使用 select
+    const { error } = await supabase
+      .from(TABLES.MOVE_TIPS)
+      .update({
+        is_approved: isApproved
+      })
+      .eq('id', id);
 
-  return { data, error };
+    if (error) {
+      console.error('更新心得状态失败:', error);
+      return { data: null, error };
+    }
+
+    // 更新成功，返回成功状态
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    console.error('审核心得异常:', error);
+    return { data: null, error: error as Error };
+  }
 }
 
 // 获取统计数据

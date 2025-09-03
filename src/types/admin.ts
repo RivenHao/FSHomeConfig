@@ -62,12 +62,12 @@ export interface MoveTip {
   move_id: number;
   user_id: string;
   tip_content: string;
-  is_approved: boolean | null;
+  is_approved: boolean;
   created_at: string | null;
   updated_at: string | null;
   // 关联数据
-  user?: UserProfile;
-  move?: Move;
+  user_profiles?: { nickname: string | null; email: string | null };
+  moves?: { move_name: string | null; main_type: string | null; sub_type: string | null };
 }
 
 // 分页参数类型

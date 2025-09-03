@@ -99,13 +99,10 @@ export default function TipsPage() {
     }
   };
 
-  const getStatusTag = (isApproved: boolean | null) => {
-    if (isApproved === null) {
-      return <Tag color="orange">待审核</Tag>;
-    }
+  const getStatusTag = (isApproved: boolean) => {
     return isApproved ? 
       <Tag color="green">已通过</Tag> : 
-      <Tag color="red">已拒绝</Tag>;
+      <Tag color="orange">待审核</Tag>;
   };
 
   const columns = [
@@ -116,10 +113,10 @@ export default function TipsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
             <div style={{ fontWeight: 'bold' }}>
-              {record.user?.nickname || '未设置昵称'}
+              {record.user_profiles?.nickname || '未设置昵称'}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>
-              {record.user?.email}
+              {record.user_profiles?.email}
             </div>
           </div>
         </div>
@@ -131,10 +128,10 @@ export default function TipsPage() {
       render: (record: MoveTip) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
-            {record.move?.move_name || '未知招式'}
+            {record.moves?.move_name || '未知招式'}
           </div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {record.move?.main_type} - {record.move?.sub_type}
+            {record.moves?.main_type} - {record.moves?.sub_type}
           </div>
         </div>
       ),
@@ -161,7 +158,7 @@ export default function TipsPage() {
       title: '状态',
       dataIndex: 'is_approved',
       key: 'is_approved',
-      render: (isApproved: boolean | null) => getStatusTag(isApproved),
+      render: (isApproved: boolean) => getStatusTag(isApproved),
     },
     {
       title: '提交时间',
@@ -181,7 +178,7 @@ export default function TipsPage() {
           >
             查看
           </Button>
-          {record.is_approved === null && (
+          {!record.is_approved && (
             <Button
               type="primary"
               icon={<CheckCircleOutlined />}
@@ -202,10 +199,10 @@ export default function TipsPage() {
       content: (
         <div>
           <div style={{ marginBottom: 16 }}>
-            <strong>用户：</strong>{tip.user?.nickname || tip.user?.email}
+            <strong>用户：</strong>{tip.user_profiles?.nickname || tip.user_profiles?.email}
           </div>
           <div style={{ marginBottom: 16 }}>
-            <strong>招式：</strong>{tip.move?.move_name}
+            <strong>招式：</strong>{tip.moves?.move_name}
           </div>
           <div style={{ marginBottom: 16 }}>
             <strong>心得内容：</strong>
@@ -292,10 +289,14 @@ export default function TipsPage() {
         {selectedTip && (
           <div>
             <div style={{ marginBottom: 16 }}>
-              <strong>用户：</strong>{selectedTip.user?.nickname || selectedTip.user?.email}
+              <strong>用户：</strong>{selectedTip.user_profiles?.nickname || selectedTip.user_profiles?.email}
             </div>
             <div style={{ marginBottom: 16 }}>
-              <strong>招式：</strong>{selectedTip.move?.move_name}
+              <strong>招式：</strong>{selectedTip.moves?.move_name}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+                          <strong>当前状态：</strong>
+            {getStatusTag(selectedTip.is_approved || false)}
             </div>
             <div style={{ marginBottom: 16 }}>
               <strong>心得内容：</strong>
@@ -314,13 +315,12 @@ export default function TipsPage() {
               <Form.Item
                 name="isApproved"
                 label="审核结果"
-                rules={[{ required: true, message: '请选择审核结果' }]}
                 valuePropName="checked"
+                initialValue={true}
               >
                 <Switch
                   checkedChildren="通过"
                   unCheckedChildren="拒绝"
-                  defaultChecked={true}
                 />
               </Form.Item>
               
