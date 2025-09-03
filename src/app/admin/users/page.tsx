@@ -13,13 +13,18 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
-  const loadUsers = async () => {
+  const loadUsers = async (page = 1, pageSize = pagination.pageSize) => {
     setLoading(true);
     try {
       const result = await getUsersList({
-        page: 1,
-        pageSize: 1000, // 一次性加载所有用户
+        page,
+        pageSize,
         search: searchValue
       });
       
@@ -29,6 +34,11 @@ export default function UsersPage() {
       }
       
       setUsers(result.data || []);
+      setPagination(prev => ({
+        ...prev,
+        current: page,
+        total: result.total || 0,
+      }));
     } catch (error) {
       console.error('加载用户数据失败:', error);
       message.error('加载用户数据失败');
@@ -46,13 +56,20 @@ export default function UsersPage() {
     setSearchValue(value);
     // 延迟搜索，避免频繁请求
     setTimeout(() => {
-      loadUsers();
+      loadUsers(1);
     }, 500);
   };
 
   const handleReset = () => {
     setSearchValue('');
-    loadUsers();
+    loadUsers(1);
+  };
+
+  const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
+    const { current, pageSize } = paginationInfo;
+    if (current && pageSize) {
+      loadUsers(current, pageSize);
+    }
   };
 
   const columns = [
@@ -185,7 +202,15 @@ export default function UsersPage() {
           dataSource={users}
           rowKey="id"
           loading={loading}
-          pagination={false} // 禁用分页
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+          }}
+          onChange={handleTableChange}
           scroll={{ x: 1200 }}
         />
       </Card>

@@ -19,14 +19,19 @@ export default function VideosPage() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<UserMoveSubmission | null>(null);
   const [reviewForm] = Form.useForm();
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
-  const loadVideos = async () => {
+  const loadVideos = async (page = 1, pageSize = pagination.pageSize) => {
     setLoading(true);
     try {
-      console.log('开始加载视频数据...', { searchValue, statusFilter });
+      console.log('开始加载视频数据...', { searchValue, statusFilter, page, pageSize });
       const result = await getVideoSubmissions({
-        page: 1,
-        pageSize: 1000, // 一次性加载所有视频
+        page,
+        pageSize,
         search: searchValue,
         status: statusFilter || undefined
       });
@@ -42,6 +47,11 @@ export default function VideosPage() {
       console.log('设置视频数据:', result.data);
       console.log('筛选条件:', { searchValue, statusFilter });
       setVideos(result.data || []);
+      setPagination(prev => ({
+        ...prev,
+        current: page,
+        total: result.total || 0,
+      }));
     } catch (error) {
       console.error('加载视频数据失败:', error);
       message.error('加载视频数据失败');
@@ -118,7 +128,7 @@ export default function VideosPage() {
   const handleSearch = (value: string) => {
     setSearchValue(value);
     setTimeout(() => {
-      loadVideos();
+      loadVideos(1);
     }, 500);
   };
 
@@ -127,7 +137,7 @@ export default function VideosPage() {
     setStatusFilter(value);
     // 直接传递状态值，不依赖状态变量
     setTimeout(() => {
-      loadVideosWithStatus(value);
+      loadVideos(1);
     }, 300);
   };
 
@@ -136,6 +146,13 @@ export default function VideosPage() {
     setStatusFilter('');
     // 重置后重新加载所有数据，不使用筛选条件
     loadVideosWithoutFilter();
+  };
+
+  const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
+    const { current, pageSize } = paginationInfo;
+    if (current && pageSize) {
+      loadVideos(current, pageSize);
+    }
   };
 
   const handleReview = (video: UserMoveSubmission) => {
@@ -162,7 +179,7 @@ export default function VideosPage() {
       message.success('审核操作成功');
       setReviewModalVisible(false);
       setSelectedVideo(null);
-      loadVideos(); // 重新加载数据
+      loadVideos(1); // 重新加载数据
     } catch (error) {
       console.error('审核操作失败:', error);
       message.error('审核操作失败');
@@ -332,7 +349,15 @@ export default function VideosPage() {
           dataSource={videos}
           rowKey="id"
           loading={loading}
-          pagination={false} // 禁用分页
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+          }}
+          onChange={handleTableChange}
           scroll={{ x: 1400 }}
         />
       </Card>

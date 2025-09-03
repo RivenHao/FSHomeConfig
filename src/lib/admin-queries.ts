@@ -1,5 +1,5 @@
 import { supabase, TABLES } from './supabase';
-import { PaginationParams, FilterParams } from '@/types/admin';
+import { PaginationParams, FilterParams, Move } from '@/types/admin';
 import { getCurrentAdmin } from './admin-auth';
 
 // 获取用户列表
@@ -141,6 +141,81 @@ export async function getMoveTips(params: PaginationParams & FilterParams) {
   );
 
   return { data: enrichedData, error: null, total: count || 0 };
+}
+
+// 获取招式列表
+export async function getMoves() {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.MOVES)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 创建招式
+export async function createMove(moveData: Partial<Move>) {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.MOVES)
+      .insert([moveData])
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 更新招式
+export async function updateMove(id: number, moveData: Partial<Move>) {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.MOVES)
+      .update(moveData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除招式
+export async function deleteMove(id: number) {
+  try {
+    const { error } = await supabase
+      .from(TABLES.MOVES)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
 }
 
 // 审核视频提交

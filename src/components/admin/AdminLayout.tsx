@@ -13,6 +13,7 @@ import {
   SettingOutlined,
   LogoutOutlined,
   BellOutlined,
+  FireOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentAdmin, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
@@ -78,6 +79,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       key: '/admin/users',
       icon: <TeamOutlined />,
       label: '用户管理',
+    },
+    {
+      key: '/admin/moves',
+      icon: <FireOutlined />,
+      label: '招式库管理',
     },
     {
       key: '/admin/videos',

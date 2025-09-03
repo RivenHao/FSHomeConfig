@@ -19,13 +19,18 @@ export default function TipsPage() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedTip, setSelectedTip] = useState<MoveTip | null>(null);
   const [reviewForm] = Form.useForm();
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
 
-  const loadTips = async () => {
+  const loadTips = async (page = 1, pageSize = pagination.pageSize) => {
     setLoading(true);
     try {
       const result = await getMoveTips({
-        page: 1,
-        pageSize: 1000, // 一次性加载所有心得
+        page,
+        pageSize,
         search: searchValue,
         status: statusFilter || undefined
       });
@@ -36,6 +41,11 @@ export default function TipsPage() {
       }
       
       setTips(result.data || []);
+      setPagination(prev => ({
+        ...prev,
+        current: page,
+        total: result.total || 0,
+      }));
     } catch (error) {
       console.error('加载心得数据失败:', error);
       message.error('加载心得数据失败');
@@ -52,21 +62,28 @@ export default function TipsPage() {
   const handleSearch = (value: string) => {
     setSearchValue(value);
     setTimeout(() => {
-      loadTips();
+      loadTips(1);
     }, 500);
   };
 
   const handleStatusFilter = (value: string) => {
     setStatusFilter(value);
     setTimeout(() => {
-      loadTips();
+      loadTips(1);
     }, 300);
   };
 
   const handleReset = () => {
     setSearchValue('');
     setStatusFilter('');
-    loadTips();
+    loadTips(1);
+  };
+
+  const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
+    const { current, pageSize } = paginationInfo;
+    if (current && pageSize) {
+      loadTips(current, pageSize);
+    }
   };
 
   const handleReview = (tip: MoveTip) => {
@@ -273,7 +290,15 @@ export default function TipsPage() {
           dataSource={tips}
           rowKey="id"
           loading={loading}
-          pagination={false} // 禁用分页
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+          }}
+          onChange={handleTableChange}
           scroll={{ x: 1200 }}
         />
       </Card>
