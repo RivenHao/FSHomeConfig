@@ -19,6 +19,7 @@ export default function MovesPage() {
 
   // 根据主类型更新子类型选项
   const updateSubTypeOptions = (mainType: string | null) => {
+    
     let options: { value: string; label: string }[] = [];
     switch (mainType) {
       case 'lower':
