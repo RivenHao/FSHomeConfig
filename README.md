@@ -1,36 +1,169 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FSHome 后台管理系统
 
-## Getting Started
+这是一个基于 Next.js、Supabase 和 Ant Design 构建的现代化后台管理系统，专门为 FSHome 社区网站提供管理功能。
 
-First, run the development server:
+## 🚀 技术栈
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **前端框架**: Next.js 15.5.2
+- **UI 组件库**: Ant Design 5.x
+- **数据库**: Supabase (PostgreSQL)
+- **认证**: Supabase Auth
+- **样式**: Tailwind CSS + Ant Design
+- **语言**: TypeScript
+- **图标**: Ant Design Icons
+
+## ✨ 功能特性
+
+### 🔐 用户认证
+- 管理员邮箱密码登录
+- 基于 admin_users 表的权限验证
+- 支持 admin 和 super_admin 两种角色
+
+### 📊 仪表盘
+- 实时统计数据展示
+- 待处理事项概览
+- 快速操作入口
+
+### 👥 用户管理
+- 用户信息列表展示
+- 用户搜索和筛选
+- 用户详情查看
+- 分页显示（每页10条）
+
+### 🎥 视频审核
+- 用户上传视频审核
+- 视频状态管理（待审核/已通过/已拒绝）
+- 审核备注和操作记录
+- 视频预览和播放链接
+
+### 📝 心得审核
+- 用户心得内容审核
+- 审核状态管理
+- 心得内容查看
+- 批量审核操作
+
+### 🎨 界面特性
+- 响应式设计，支持移动端
+- 现代化 UI 设计
+- 左侧菜单栏导航
+- 顶部用户信息展示
+
+## 🏗️ 项目结构
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── admin/             # 后台管理路由
+│   │   ├── login/         # 登录页面
+│   │   ├── dashboard/     # 仪表盘
+│   │   ├── users/         # 用户管理
+│   │   ├── videos/        # 视频审核
+│   │   ├── tips/          # 心得审核
+│   │   └── layout.tsx     # 管理员布局
+│   ├── globals.css        # 全局样式
+│   ├── layout.tsx         # 根布局
+│   └── page.tsx           # 主页面
+├── components/             # 组件目录
+│   └── admin/             # 管理员组件
+│       ├── AdminLayout.tsx    # 主布局组件
+│       └── ...
+├── lib/                   # 工具库
+│   ├── supabase.ts        # Supabase 客户端
+│   ├── admin-auth.ts      # 管理员认证
+│   └── admin-queries.ts   # 数据查询
+└── types/                 # 类型定义
+    └── admin.ts           # 管理员相关类型
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 快速开始
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 环境要求
+- Node.js 18+ 
+- npm 或 yarn
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 安装依赖
+```bash
+npm install
+```
 
-## Learn More
+### 环境配置
+创建 `.env.local` 文件并配置以下环境变量：
 
-To learn more about Next.js, take a look at the following resources:
+```env
+# Supabase配置
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 应用配置
+NEXT_PUBLIC_APP_NAME=FSHome后台管理系统
+NEXT_PUBLIC_APP_VERSION=1.0.0
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 启动开发服务器
+```bash
+npm run dev
+```
 
-## Deploy on Vercel
+访问 [http://localhost:3000](http://localhost:3000) 查看应用。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📋 数据库表结构
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+系统依赖以下 Supabase 表：
+
+- `admin_users` - 管理员用户表
+- `user_profiles` - 用户信息表
+- `moves` - 招式表
+- `user_move_submissions` - 用户视频提交表
+- `move_tips` - 招式心得表
+- `user_moves_unlock` - 用户解锁招式表
+
+## 🔧 开发说明
+
+### 添加新功能
+1. 在 `src/types/admin.ts` 中定义相关类型
+2. 在 `src/lib/admin-queries.ts` 中添加数据查询函数
+3. 在 `src/app/admin/` 下创建对应的页面
+4. 在 `AdminLayout.tsx` 中添加菜单项
+
+### 权限控制
+- 普通管理员：可以查看和审核内容
+- 超级管理员：额外拥有系统设置权限
+
+### 样式定制
+- 使用 Ant Design 主题系统
+- 支持 Tailwind CSS 工具类
+- 响应式设计适配各种设备
+
+## 📱 响应式支持
+
+- 桌面端：完整功能展示
+- 平板端：适配中等屏幕
+- 移动端：优化触摸操作
+
+## 🚀 部署
+
+### 构建生产版本
+```bash
+npm run build
+```
+
+### 启动生产服务器
+```bash
+npm start
+```
+
+## 🤝 贡献指南
+
+1. Fork 项目
+2. 创建功能分支
+3. 提交更改
+4. 推送到分支
+5. 创建 Pull Request
+
+## 📄 许可证
+
+本项目采用 MIT 许可证。
+
+## 📞 联系方式
+
+如有问题或建议，请联系开发团队。
