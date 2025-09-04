@@ -560,7 +560,7 @@ export async function getAllMoveCategories() {
   try {
     const { data, error } = await supabase
       .from('move_categories')
-      .select('id, category_name, category_code')
+      .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 

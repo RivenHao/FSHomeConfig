@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
-import { getMoves, createMove, updateMove, deleteMove } from '@/lib/admin-queries';
-import { Move } from '@/types/admin';
+import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
+import { Move, MoveCategory, MoveSubCategory } from '@/types/admin';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -16,73 +16,69 @@ export default function MovesPage() {
   const [editingMove, setEditingMove] = useState<Move | null>(null);
   const [form] = Form.useForm();
   const [subTypeOptions, setSubTypeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [categories, setCategories] = useState<MoveCategory[]>([]);
+  const [subCategories, setSubCategories] = useState<MoveSubCategory[]>([]);
 
   // 根据主类型更新子类型选项
-  const updateSubTypeOptions = (mainType: string | null) => {
-    let options: { value: string; label: string }[] = [];
-    switch (mainType) {
-      case 'lower':
-        options = [
-          { value: '0.5rev', label: '0.5rev' },
-          { value: '1rev', label: '1rev' },
-          { value: '1.5rev', label: '1.5rev' },
-          { value: '2rev', label: '2rev' },
-          { value: '2.5rev', label: '2.5rev' },
-          { value: '3rev', label: '3rev' },
-          { value: '3.5rev', label: '3.5rev' },
-          { value: '4rev', label: '4rev' }
-        ];
-        break;
-      case 'upper':
-        options = [
-          { value: 'handstand', label: 'handstand' },
-          { value: 'freeze', label: 'freeze' },
-          { value: 'power', label: 'power' }
-        ];
-        break;
-      case 'sit':
-        options = [
-          { value: 'basic_sit', label: 'basic sit' },
-          { value: 'advanced_sit', label: 'advanced sit' }
-        ];
-        break;
-      case 'block':
-        options = [
-          { value: 'basic_block', label: 'basic block' },
-          { value: 'advanced_block', label: 'advanced block' }
-        ];
-        break;
-      case 'new_school':
-        options = [
-          { value: 'new_style', label: 'new style' },
-          { value: 'modern', label: 'modern' }
-        ];
-        break;
-      case 'old_school':
-        options = [
-          { value: 'classic', label: 'classic' },
-          { value: 'traditional', label: 'traditional' }
-        ];
-        break;
-      case 'transition':
-        options = [
-          { value: 'smooth', label: 'smooth' },
-          { value: 'quick', label: 'quick' }
-        ];
-        break;
-      case 'kickball':
-        options = [
-          { value: 'basic_kick', label: '基础踢法' },
-          { value: 'advanced_kick', label: '高级踢法' }
-        ];
-        break;
-      default:
-        options = [];
+  const updateSubTypeOptions = async (mainType: string | null) => {
+    if (!mainType) {
+      setSubTypeOptions([]);
+      form.setFieldValue('sub_type', undefined);
+      return;
     }
-    
-    setSubTypeOptions(options);
-    // 清空子类型选择
-    form.setFieldValue('sub_type', undefined);
+
+    try {
+      // 根据大类代码查找对应的分类ID
+      const category = categories.find(c => c.category_code === mainType);
+      if (!category) {
+        setSubTypeOptions([]);
+        form.setFieldValue('sub_type', undefined);
+        return;
+      }
+
+      // 获取该分类下的小类
+      const result = await getMoveSubCategories({
+        page: 1,
+        pageSize: 1000, // 获取所有小类
+        category_id: category.id
+      });
+
+      if (result.error || !result.data) {
+        setSubTypeOptions([]);
+        return;
+      }
+
+      // 转换为选项格式
+      const options = result.data
+        .filter(sub => sub.is_active) // 只显示启用的
+        .map(sub => ({
+          value: sub.sub_code,
+          label: sub.sub_name
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)); // 按名称排序
+
+      setSubTypeOptions(options);
+      // 清空子类型选择
+      form.setFieldValue('sub_type', undefined);
+    } catch (error) {
+      console.error('获取子类型选项失败:', error);
+      setSubTypeOptions([]);
+      form.setFieldValue('sub_type', undefined);
+    }
+  };
+
+  // 加载招式分类数据
+  const loadCategories = async () => {
+    try {
+      const result = await getAllMoveCategories();
+      if (result.error) {
+        console.error('加载招式分类失败:', result.error);
+        return;
+      }
+      setCategories(result.data || []);
+    } catch (error) {
+      console.error('加载招式分类失败:', error);
+    }
   };
 
   const loadMoves = async () => {
@@ -103,6 +99,7 @@ export default function MovesPage() {
   };
 
   useEffect(() => {
+    loadCategories();
     loadMoves();
   }, []);
 
@@ -316,14 +313,14 @@ export default function MovesPage() {
               placeholder="请选择主类型"
               onChange={updateSubTypeOptions}
             >
-              <Option value="lower">lower</Option>
-              <Option value="upper">upper</Option>
-              <Option value="sit">sit down</Option>
-              <Option value="block">block</Option>
-              <Option value="new_school">new_school</Option>
-              <Option value="old_school">old_school</Option>
-              <Option value="transition">transition</Option>
-              <Option value="kickball">蹴鞠</Option>
+              {categories
+                .filter(category => category.is_active)
+                .sort((a, b) => a.sort_order - b.sort_order)
+                .map(category => (
+                  <Option key={category.id} value={category.category_code}>
+                    {category.category_name}
+                  </Option>
+                ))}
             </Select>
           </Form.Item>
 
