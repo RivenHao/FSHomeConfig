@@ -1,5 +1,5 @@
 import { supabase, TABLES } from './supabase';
-import { PaginationParams, FilterParams, Move } from '@/types/admin';
+import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory, MoveCategoryWithSub } from '@/types/admin';
 import { getCurrentAdmin } from './admin-auth';
 
 // 获取用户列表
@@ -415,4 +415,157 @@ export async function getDashboardStats() {
     pendingTips: pendingTips || 0,
     totalMoves: totalMoves || 0
   };
+}
+
+// ========================================
+// 招式分类管理函数
+// ========================================
+
+// 获取招式大类列表
+export async function getMoveCategories(params: PaginationParams) {
+  try {
+    const from = (params.page - 1) * params.pageSize;
+    const to = from + params.pageSize - 1;
+    
+    const { data, error, count } = await supabase
+      .from('move_categories')
+      .select('*', { count: 'exact' })
+      .range(from, to)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    return { data, error, total: count || 0 };
+  } catch (error) {
+    return { data: null, error: error as Error, total: 0 };
+  }
+}
+
+// 创建招式大类
+export async function createMoveCategory(categoryData: Partial<MoveCategory>) {
+  try {
+    const { data, error } = await supabase
+      .from('move_categories')
+      .insert([categoryData])
+      .select()
+      .single();
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 更新招式大类
+export async function updateMoveCategory(id: number, categoryData: Partial<MoveCategory>) {
+  try {
+    const { data, error } = await supabase
+      .from('move_categories')
+      .update(categoryData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除招式大类
+export async function deleteMoveCategory(id: number) {
+  try {
+    const { error } = await supabase
+      .from('move_categories')
+      .delete()
+      .eq('id', id);
+
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 获取招式小类列表
+export async function getMoveSubCategories(params: PaginationParams & { category_id?: number }) {
+  try {
+    let query = supabase
+      .from('move_sub_categories')
+      .select('*, move_categories(*)', { count: 'exact' });
+
+    if (params.category_id) {
+      query = query.eq('category_id', params.category_id);
+    }
+
+    const from = (params.page - 1) * params.pageSize;
+    const to = from + params.pageSize - 1;
+    
+    const { data, error, count } = await query
+      .range(from, to)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    return { data, error, total: count || 0 };
+  } catch (error) {
+    return { data: null, error: error as Error, total: 0 };
+  }
+}
+
+// 创建招式小类
+export async function createMoveSubCategory(subCategoryData: Partial<MoveSubCategory>) {
+  try {
+    const { data, error } = await supabase
+      .from('move_sub_categories')
+      .insert([subCategoryData])
+      .select()
+      .single();
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 更新招式小类
+export async function updateMoveSubCategory(id: number, subCategoryData: Partial<MoveSubCategory>) {
+  try {
+    const { data, error } = await supabase
+      .from('move_sub_categories')
+      .update(subCategoryData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除招式小类
+export async function deleteMoveSubCategory(id: number) {
+  try {
+    const { error } = await supabase
+      .from('move_sub_categories')
+      .delete()
+      .eq('id', id);
+
+    return { data: null, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 获取所有招式大类（不分页，用于下拉选择）
+export async function getAllMoveCategories() {
+  try {
+    const { data, error } = await supabase
+      .from('move_categories')
+      .select('id, category_name, category_code')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
 }

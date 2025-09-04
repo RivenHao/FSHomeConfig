@@ -91,3 +91,46 @@ export interface ReviewAction {
   action: 'approve' | 'reject';
   note?: string;
 }
+
+// 招式大类类型
+export interface MoveCategory {
+  id: number;
+  category_name: string;
+  category_code: string;
+  description?: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// 招式小类类型
+export interface MoveSubCategory {
+  id: number;
+  category_id: number;
+  sub_name: string;
+  sub_code: string;
+  description?: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // 关联数据
+  category?: MoveCategory;
+}
+
+// 招式分类组合类型
+export interface MoveCategoryWithSub {
+  category_id: number;
+  category_name: string;
+  category_code: string;
+  category_description?: string;
+  category_sort: number;
+  category_active: boolean;
+  sub_category_id?: number;
+  sub_name?: string;
+  sub_code?: string;
+  sub_description?: string;
+  sub_sort?: number;
+  sub_active?: boolean;
+}
