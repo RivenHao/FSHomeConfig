@@ -160,10 +160,12 @@ export default function MovesPage() {
   };
 
   // 根据主类型更新子类型选项
-  const updateSubTypeOptions = useCallback(async (mainType: string | null) => {
+  const updateSubTypeOptions = useCallback(async (mainType: string | null, preserveValue = false) => {
     if (!mainType) {
       setSubTypeOptions([]);
-      form.setFieldValue('sub_type', undefined);
+      if (!preserveValue) {
+        form.setFieldValue('sub_type', undefined);
+      }
       return;
     }
 
@@ -172,7 +174,9 @@ export default function MovesPage() {
       const category = categories.find(c => c.category_code === mainType);
       if (!category) {
         setSubTypeOptions([]);
-        form.setFieldValue('sub_type', undefined);
+        if (!preserveValue) {
+          form.setFieldValue('sub_type', undefined);
+        }
         return;
       }
 
@@ -198,12 +202,16 @@ export default function MovesPage() {
         .sort((a, b) => a.label.localeCompare(b.label)); // 按名称排序
 
       setSubTypeOptions(options);
-      // 清空子类型选择
-      form.setFieldValue('sub_type', undefined);
+      // 只有在非保留模式下才清空子类型选择
+      if (!preserveValue) {
+        form.setFieldValue('sub_type', undefined);
+      }
     } catch (error) {
       console.error('获取子类型选项失败:', error);
       setSubTypeOptions([]);
-      form.setFieldValue('sub_type', undefined);
+      if (!preserveValue) {
+        form.setFieldValue('sub_type', undefined);
+      }
     }
   }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -254,8 +262,20 @@ export default function MovesPage() {
     setModalVisible(true);
   };
 
-  const handleEdit = (move: Move) => {
+  const handleEdit = async (move: Move) => {
     setEditingMove(move);
+    // 设置预览状态
+    setPreviewGif(move.move_gif || '');
+    setPreviewVideo(move.move_url || '');
+    // 重置GIF上传状态（编辑时清理本地上传状态）
+    resetGifUploadState();
+    
+    // 先加载子类型选项（保留原有的sub_type值）
+    if (move.main_type) {
+      await updateSubTypeOptions(move.main_type, true);
+    }
+    
+    // 然后设置表单值（包括子类型）
     form.setFieldsValue({
       move_name: move.move_name,
       main_type: move.main_type,
@@ -267,13 +287,7 @@ export default function MovesPage() {
       move_creater: move.move_creater,
       move_score: move.move_score
     });
-    // 设置预览状态
-    setPreviewGif(move.move_gif || '');
-    setPreviewVideo(move.move_url || '');
-    // 重置GIF上传状态（编辑时清理本地上传状态）
-    resetGifUploadState();
-    // 根据主类型设置子类型选项
-    updateSubTypeOptions(move.main_type);
+    
     setModalVisible(true);
   };
 
@@ -546,7 +560,7 @@ export default function MovesPage() {
           >
             <Select 
               placeholder="请选择主类型"
-              onChange={updateSubTypeOptions}
+              onChange={(value) => updateSubTypeOptions(value, false)}
             >
               {categories
                 .filter(category => category.is_active)
