@@ -1,7 +1,5 @@
 'use client';
 
-'use client';
-
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
