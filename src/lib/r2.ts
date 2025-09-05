@@ -65,7 +65,9 @@ export const SUPPORTED_VIDEO_TYPES = [
   'video/webm',
   'video/quicktime', // .mov
   'video/x-msvideo', // .avi
+  'video/mpeg',
+  'video/ogg'
 ]
 
-// 最大文件大小 (100MB)
-export const MAX_FILE_SIZE = 100 * 1024 * 1024
+// 最大视频文件大小 (100MB)
+export const MAX_VIDEO_SIZE = 100 * 1024 * 1024

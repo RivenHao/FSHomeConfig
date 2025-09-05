@@ -1,69 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import r2Client, { R2_CONFIG, generateFileName, SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE } from '@/lib/r2'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import r2Client, { R2_CONFIG } from '@/lib/r2'
 
-// 生成预签名上传 URL
+// 支持的视频格式
+const SUPPORTED_VIDEO_TYPES = [
+  'video/mp4',
+  'video/webm',
+  'video/quicktime', // .mov
+  'video/x-msvideo', // .avi
+  'video/mpeg',
+  'video/ogg'
+]
+
+// 最大文件大小 (100MB)
+const MAX_FILE_SIZE = 100 * 1024 * 1024
+
+// 生成唯一文件名
+const generateVideoFileName = (originalName: string): string => {
+  const timestamp = Date.now()
+  const randomString = Math.random().toString(36).substring(2, 15)
+  const extension = originalName.split('.').pop()?.toLowerCase() || 'mp4'
+  return `freestyle_video/${timestamp}-${randomString}.${extension}`
+}
+
+// POST - 上传视频
 export async function POST(request: NextRequest) {
   try {
-    // 获取原始请求数据
-    const contentType = request.headers.get('content-type')
-    console.log('Content-Type:', contentType)
-    
-    // 检查是否是JSON格式
-    if (!contentType || !contentType.includes('application/json')) {
-      return NextResponse.json(
-        { error: '请求必须为JSON格式' },
-        { status: 400 }
-      )
-    }
-    
-    // 先获取原始文本
-    const rawText = await request.text()
-    console.log('原始请求数据:', rawText)
-    
-    let body
-    try {
-      body = JSON.parse(rawText)
-    } catch (parseError) {
-      console.error('JSON解析错误:', parseError)
-      console.error('原始数据:', rawText)
-      return NextResponse.json(
-        { error: `请求数据格式错误: ${parseError instanceof Error ? parseError.message : '未知错误'}` },
-        { status: 400 }
-      )
-    }
-    
-    console.log('成功解析的数据:', body)
-    
-    const { fileName, fileType, fileSize } = body
+    const formData = await request.formData()
+    const file = formData.get('file') as File
 
-    // 验证必需字段
-    if (!fileName || !fileType || fileSize === undefined) {
-      return NextResponse.json(
-        { error: '缺少必需的文件信息（文件名、类型或大小）' },
-        { status: 400 }
-      )
+    if (!file) {
+      return NextResponse.json({ error: '没有选择文件' }, { status: 400 })
     }
 
     // 验证文件类型
-    if (!SUPPORTED_VIDEO_TYPES.includes(fileType)) {
+    if (!SUPPORTED_VIDEO_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: '不支持的视频格式。请上传 MP4、WebM、MOV 或 AVI 格式的视频。' },
+        { error: '不支持的视频格式。请上传 MP4、WebM、MOV、AVI、MPEG 或 OGG 格式的视频。' },
         { status: 400 }
       )
     }
 
     // 验证文件大小
-    const fileSizeNum = Number(fileSize)
-    if (isNaN(fileSizeNum) || fileSizeNum <= 0) {
-      return NextResponse.json(
-        { error: '无效的文件大小' },
-        { status: 400 }
-      )
-    }
-    
-    if (fileSizeNum > MAX_FILE_SIZE) {
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: '文件太大。请上传小于 100MB 的视频。' },
         { status: 400 }
@@ -71,76 +50,73 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成唯一文件名
-    const key = generateFileName(fileName)
+    const key = generateVideoFileName(file.name)
 
-    // 创建上传命令
-    const command = new PutObjectCommand({
-      Bucket: R2_CONFIG.bucketName,
-      Key: key,
-      ContentType: fileType,
-      ContentLength: fileSizeNum,
-      // 设置缓存策略
-      CacheControl: 'max-age=31536000', // 1年
-      // 设置元数据
-      Metadata: {
-        'original-name': fileName,
-        'upload-time': new Date().toISOString(),
-      },
-    })
+    try {
+      // 读取文件内容
+      const buffer = await file.arrayBuffer()
+      const uint8Array = new Uint8Array(buffer)
 
-    // 生成预签名 URL（10分钟有效期）
-    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 600 })
+      // 使用Base64编码文件名以避免header字符问题
+      const encodedFileName = Buffer.from(file.name, 'utf8').toString('base64')
 
-    // 生成文件的公共访问 URL
-    const fileUrl = R2_CONFIG.publicUrl 
-      ? `${R2_CONFIG.publicUrl}/${key}`
-      : `https://${R2_CONFIG.bucketName}.r2.cloudflarestorage.com/${key}`
+      // 创建上传命令
+      const command = new PutObjectCommand({
+        Bucket: R2_CONFIG.bucketName,
+        Key: key,
+        Body: uint8Array,
+        ContentType: file.type,
+        ContentLength: file.size,
+        // 设置缓存策略
+        CacheControl: 'max-age=31536000', // 1年
+        // 设置元数据（使用Base64编码的文件名）
+        Metadata: {
+          'original-name-b64': encodedFileName,
+          'upload-time': new Date().toISOString(),
+          'content-type': file.type,
+        },
+      })
 
-    return NextResponse.json({
-      uploadUrl: signedUrl,
-      fileUrl: fileUrl,
-      key: key,
-    })
+      // 上传文件
+      await r2Client.send(command)
 
-  } catch (error) {
-    console.error('生成上传 URL 失败:', error)
-    return NextResponse.json(
-      { error: '服务器错误，请稍后重试。' },
-      { status: 500 }
-    )
-  }
-}
+      // 生成文件的公共访问 URL
+      const fileUrl = R2_CONFIG.publicUrl 
+        ? `${R2_CONFIG.publicUrl}/${key}`
+        : `https://${R2_CONFIG.bucketName}.r2.cloudflarestorage.com/${key}`
 
-// 验证上传是否成功
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const key = searchParams.get('key')
+      return NextResponse.json({
+        success: true,
+        url: fileUrl,
+        key: key,
+        message: '视频上传成功'
+      })
 
-    if (!key) {
+    } catch (uploadError) {
+      console.error('R2上传失败详细错误:', uploadError)
+      console.error('错误类型:', uploadError instanceof Error ? uploadError.constructor.name : typeof uploadError)
+      console.error('错误消息:', uploadError instanceof Error ? uploadError.message : uploadError)
+      console.error('错误堆栈:', uploadError instanceof Error ? uploadError.stack : 'No stack trace')
+      
       return NextResponse.json(
-        { error: '缺少文件键值' },
-        { status: 400 }
+        { 
+          error: '文件上传失败，请重试',
+          details: uploadError instanceof Error ? uploadError.message : 'Unknown error'
+        },
+        { status: 500 }
       )
     }
 
-    // 检查文件是否存在
-    const command = new GetObjectCommand({
-      Bucket: R2_CONFIG.bucketName,
-      Key: key,
-    })
-
-    try {
-      await r2Client.send(command)
-      return NextResponse.json({ exists: true })
-    } catch (error) {
-      return NextResponse.json({ exists: false })
-    }
-
   } catch (error) {
-    console.error('验证文件失败:', error)
+    console.error('视频上传API总体错误:', error)
+    console.error('错误类型:', error instanceof Error ? error.constructor.name : typeof error)
+    console.error('错误消息:', error instanceof Error ? error.message : error)
+    
     return NextResponse.json(
-      { error: '服务器错误' },
+      { 
+        error: '服务器错误，请稍后重试',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

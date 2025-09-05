@@ -26,6 +26,13 @@ export default function MovesPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [gifUploading, setGifUploading] = useState(false);
   const gifFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 视频上传相关状态
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
+  const [isVideoDragOver, setIsVideoDragOver] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const videoFileInputRef = useRef<HTMLInputElement>(null);
 
   // GIF文件验证
   const validateGifFile = (file: File): boolean => {
@@ -147,11 +154,132 @@ export default function MovesPage() {
     gifFileInputRef.current?.click();
   };
 
+  // 视频文件验证
+  const validateVideoFile = (file: File): boolean => {
+    const supportedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg', 'video/ogg'];
+    const maxSize = 100 * 1024 * 1024; // 100MB
+
+    if (!supportedTypes.includes(file.type)) {
+      message.error('不支持的视频格式。请上传 MP4、WebM、MOV、AVI、MPEG 或 OGG 格式的视频。');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      message.error('文件太大。请上传小于 100MB 的视频。');
+      return false;
+    }
+
+    return true;
+  };
+
+  // 处理视频文件选择（仅预览，不上传）
+  const handleVideoFileSelect = (file: File) => {
+    if (!validateVideoFile(file)) {
+      return;
+    }
+
+    setSelectedVideoFile(file);
+    
+    // 创建本地预览URL
+    const previewUrl = URL.createObjectURL(file);
+    setVideoPreviewUrl(previewUrl);
+    
+    message.success('视频已选择，提交表单时将上传到云存储');
+  };
+
+  // 上传视频到R2（在表单提交时调用）
+  const uploadVideoToR2 = async (file: File): Promise<string | null> => {
+    if (!file) return null;
+
+    setVideoUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/video', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API响应错误:', errorData);
+        throw new Error(errorData.details || errorData.error || '上传失败');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        message.success('视频上传成功');
+        return result.url;
+      } else {
+        throw new Error(result.details || result.error || '上传失败');
+      }
+    } catch (error) {
+      console.error('视频上传错误:', error);
+      message.error(error instanceof Error ? error.message : '视频上传失败，请重试');
+      return null;
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
+  // 重置视频上传状态
+  const resetVideoUploadState = () => {
+    setSelectedVideoFile(null);
+    // 清理本地blob URL
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl);
+      setVideoPreviewUrl('');
+    }
+    setPreviewVideo('');
+    setIsVideoDragOver(false);
+    setVideoUploading(false);
+    // 重置文件输入
+    if (videoFileInputRef.current) {
+      videoFileInputRef.current.value = '';
+    }
+  };
+
+  // 删除视频
+  const handleDeleteVideo = () => {
+    resetVideoUploadState();
+    form.setFieldValue('move_url', '');
+  };
+
+  // 视频拖拽处理
+  const handleVideoDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVideoDragOver(true);
+  };
+
+  const handleVideoDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVideoDragOver(false);
+  };
+
+  const handleVideoDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVideoDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleVideoFileSelect(files[0]);
+    }
+  };
+
+  // 触发视频文件选择
+  const triggerVideoFileSelect = () => {
+    videoFileInputRef.current?.click();
+  };
+
   // 处理Modal关闭
   const handleModalClose = () => {
     setModalVisible(false);
     // 清理所有状态
     resetGifUploadState();
+    resetVideoUploadState();
     setEditingMove(null);
     form.resetFields();
     setSubTypeOptions([]);
@@ -259,6 +387,8 @@ export default function MovesPage() {
     setPreviewGif('');
     // 重置GIF上传状态
     resetGifUploadState();
+    // 重置视频上传状态
+    resetVideoUploadState();
     setModalVisible(true);
   };
 
@@ -269,6 +399,8 @@ export default function MovesPage() {
     setPreviewVideo(move.move_url || '');
     // 重置GIF上传状态（编辑时清理本地上传状态）
     resetGifUploadState();
+    // 重置视频上传状态（编辑时清理本地上传状态）
+    resetVideoUploadState();
     
     // 先加载子类型选项（保留原有的sub_type值）
     if (move.main_type) {
@@ -306,11 +438,6 @@ export default function MovesPage() {
     }
   };
 
-  // 删除视频预览
-  const handleDeleteVideo = () => {
-    setPreviewVideo('');
-    form.setFieldValue('move_url', '');
-  };
 
   const handleSubmit = async (values: {
     move_name: string;
@@ -344,10 +471,31 @@ export default function MovesPage() {
         setPreviewGif(uploadedUrl);
       }
 
-      // 更新values中的move_gif
+      // 如果选择了新的视频文件，先上传
+      let videoUrl = values.move_url || '';
+      if (selectedVideoFile) {
+        const uploadedUrl = await uploadVideoToR2(selectedVideoFile);
+        if (!uploadedUrl) {
+          message.error('视频上传失败，请重试');
+          return;
+        }
+        videoUrl = uploadedUrl;
+        
+        // 上传成功后清理本地预览状态
+        if (videoPreviewUrl) {
+          URL.revokeObjectURL(videoPreviewUrl);
+          setVideoPreviewUrl('');
+        }
+        setSelectedVideoFile(null);
+        // 设置新的预览URL为上传后的真实URL
+        setPreviewVideo(uploadedUrl);
+      }
+
+      // 更新values中的move_gif和move_url
       const finalValues = {
         ...values,
-        move_gif: gifUrl
+        move_gif: gifUrl,
+        move_url: videoUrl
       };
 
       if (editingMove) {
@@ -622,29 +770,60 @@ export default function MovesPage() {
             label="招式视频"
           >
             <div>
-              <Button 
-                type="dashed" 
-                style={{ width: '100%', marginBottom: 8 }}
-                onClick={() => {
-                  // TODO: 实现上传逻辑
-                  console.log('上传视频');
+              {/* 拖拽上传区域 */}
+              <div
+                style={{
+                  border: `2px dashed ${isVideoDragOver ? '#1890ff' : '#d9d9d9'}`,
+                  borderRadius: '6px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  backgroundColor: isVideoDragOver ? '#f0f8ff' : '#fafafa',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
                 }}
+                onDragOver={handleVideoDragOver}
+                onDragLeave={handleVideoDragLeave}
+                onDrop={handleVideoDrop}
+                onClick={triggerVideoFileSelect}
               >
-                上传视频
-              </Button>
-              {previewVideo && (
-                <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                <PlayCircleOutlined style={{ fontSize: '48px', color: '#999', marginBottom: '16px' }} />
+                <p style={{ margin: '0 0 8px 0', fontSize: '16px' }}>
+                  点击或拖拽视频文件到此区域上传
+                </p>
+                <p style={{ margin: 0, color: '#999' }}>
+                  支持 MP4、WebM、MOV、AVI、MPEG、OGG 格式，文件大小不超过 100MB
+                </p>
+              </div>
+
+              {/* 隐藏的文件输入 */}
+              <input
+                key={`video-input-${modalVisible ? 'open' : 'closed'}-${editingMove?.id || 'new'}`}
+                ref={videoFileInputRef}
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime,video/x-msvideo,video/mpeg,video/ogg"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleVideoFileSelect(file);
+                  }
+                }}
+              />
+
+              {/* 预览区域 */}
+              {(videoPreviewUrl || previewVideo) && (
+                <div style={{ marginTop: 16, position: 'relative', display: 'inline-block' }}>
                   <div style={{ 
                     position: 'relative', 
                     display: 'inline-block',
                     border: '1px solid #d9d9d9',
                     borderRadius: '4px',
-                    padding: '4px'
+                    padding: '8px'
                   }}>
                     <Button
                       type="link"
                       icon={<PlayCircleOutlined />}
-                      onClick={() => window.open(previewVideo, '_blank')}
+                      onClick={() => window.open(videoPreviewUrl || previewVideo || '', '_blank')}
                       style={{ padding: 0, height: 'auto' }}
                     >
                       预览视频
@@ -669,6 +848,22 @@ export default function MovesPage() {
                       }}
                     />
                   </div>
+                  <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+                    {selectedVideoFile ? (
+                      <span style={{ color: '#1890ff' }}>
+                        🎬 {selectedVideoFile.name} (将在提交时上传)
+                      </span>
+                    ) : (
+                      <span>当前视频</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 上传进度提示 */}
+              {videoUploading && (
+                <div style={{ marginTop: 8, color: '#1890ff' }}>
+                  正在上传视频...
                 </div>
               )}
             </div>
