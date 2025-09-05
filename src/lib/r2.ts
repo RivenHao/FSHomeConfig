@@ -23,7 +23,7 @@ export function generateFileName(originalName: string): string {
   const timestamp = Date.now()
   const randomString = Math.random().toString(36).substring(2, 15)
   const extension = originalName.split('.').pop()
-  return `videos/${timestamp}-${randomString}.${extension}`
+  return `freestyle_gif/${timestamp}-${randomString}.${extension}`
 }
 
 // 从URL中提取文件key
@@ -47,6 +47,17 @@ export function extractKeyFromUrl(url: string): string | null {
     return null
   }
 }
+
+// 获取支持的图片格式
+export const SUPPORTED_GIF_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp'
+]
+
+// 最大GIF文件大小 (10MB)
+export const MAX_GIF_SIZE = 10 * 1024 * 1024
 
 // 获取支持的视频格式
 export const SUPPORTED_VIDEO_TYPES = [

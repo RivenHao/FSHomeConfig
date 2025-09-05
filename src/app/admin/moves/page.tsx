@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
 import { Move, MoveCategory } from '@/types/admin';
 
@@ -19,6 +19,145 @@ export default function MovesPage() {
   const [categories, setCategories] = useState<MoveCategory[]>([]);
   const [previewVideo, setPreviewVideo] = useState<string>('');
   const [previewGif, setPreviewGif] = useState<string>('');
+  
+  // GIF上传相关状态
+  const [selectedGifFile, setSelectedGifFile] = useState<File | null>(null);
+  const [gifPreviewUrl, setGifPreviewUrl] = useState<string>('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [gifUploading, setGifUploading] = useState(false);
+  const gifFileInputRef = useRef<HTMLInputElement>(null);
+
+  // GIF文件验证
+  const validateGifFile = (file: File): boolean => {
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (!supportedTypes.includes(file.type)) {
+      message.error('不支持的文件格式。请上传 JPEG、PNG、GIF 或 WebP 格式的图片。');
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      message.error('文件太大。请上传小于 10MB 的图片。');
+      return false;
+    }
+
+    return true;
+  };
+
+  // 处理GIF文件选择（仅预览，不上传）
+  const handleGifFileSelect = (file: File) => {
+    if (!validateGifFile(file)) {
+      return;
+    }
+
+    setSelectedGifFile(file);
+    
+    // 创建本地预览URL
+    const previewUrl = URL.createObjectURL(file);
+    setGifPreviewUrl(previewUrl);
+    
+    message.success('图片已选择，提交表单时将上传到云存储');
+  };
+
+  // 上传GIF到R2（在表单提交时调用）
+  const uploadGifToR2 = async (file: File): Promise<string | null> => {
+    if (!file) return null;
+
+    setGifUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/gif', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API响应错误:', errorData);
+        throw new Error(errorData.details || errorData.error || '上传失败');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        message.success('GIF图片上传成功');
+        return result.url;
+      } else {
+        throw new Error(result.details || result.error || '上传失败');
+      }
+    } catch (error) {
+      console.error('GIF上传错误:', error);
+      message.error(error instanceof Error ? error.message : 'GIF上传失败，请重试');
+      return null;
+    } finally {
+      setGifUploading(false);
+    }
+  };
+
+  // 重置GIF上传状态
+  const resetGifUploadState = () => {
+    setSelectedGifFile(null);
+    // 清理本地blob URL
+    if (gifPreviewUrl) {
+      URL.revokeObjectURL(gifPreviewUrl);
+      setGifPreviewUrl('');
+    }
+    setPreviewGif('');
+    setIsDragOver(false);
+    setGifUploading(false);
+    // 重置文件输入
+    if (gifFileInputRef.current) {
+      gifFileInputRef.current.value = '';
+    }
+  };
+
+  // 删除GIF
+  const handleDeleteGif = () => {
+    resetGifUploadState();
+    form.setFieldValue('move_gif', '');
+  };
+
+  // 拖拽处理
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleGifFileSelect(files[0]);
+    }
+  };
+
+  // 触发文件选择
+  const triggerFileSelect = () => {
+    gifFileInputRef.current?.click();
+  };
+
+  // 处理Modal关闭
+  const handleModalClose = () => {
+    setModalVisible(false);
+    // 清理所有状态
+    resetGifUploadState();
+    setEditingMove(null);
+    form.resetFields();
+    setSubTypeOptions([]);
+    setPreviewVideo('');
+    setPreviewGif('');
+  };
 
   // 根据主类型更新子类型选项
   const updateSubTypeOptions = useCallback(async (mainType: string | null) => {
@@ -110,6 +249,8 @@ export default function MovesPage() {
     setSubTypeOptions([]);
     setPreviewVideo('');
     setPreviewGif('');
+    // 重置GIF上传状态
+    resetGifUploadState();
     setModalVisible(true);
   };
 
@@ -129,6 +270,8 @@ export default function MovesPage() {
     // 设置预览状态
     setPreviewGif(move.move_gif || '');
     setPreviewVideo(move.move_url || '');
+    // 重置GIF上传状态（编辑时清理本地上传状态）
+    resetGifUploadState();
     // 根据主类型设置子类型选项
     updateSubTypeOptions(move.main_type);
     setModalVisible(true);
@@ -149,12 +292,6 @@ export default function MovesPage() {
     }
   };
 
-  // 删除动图预览
-  const handleDeleteGif = () => {
-    setPreviewGif('');
-    form.setFieldValue('move_gif', '');
-  };
-
   // 删除视频预览
   const handleDeleteVideo = () => {
     setPreviewVideo('');
@@ -173,9 +310,35 @@ export default function MovesPage() {
     move_score: number;
   }) => {
     try {
+      // 如果选择了新的GIF文件，先上传
+      let gifUrl = values.move_gif || '';
+      if (selectedGifFile) {
+        const uploadedUrl = await uploadGifToR2(selectedGifFile);
+        if (!uploadedUrl) {
+          message.error('GIF上传失败，请重试');
+          return;
+        }
+        gifUrl = uploadedUrl;
+        
+        // 上传成功后清理本地预览状态
+        if (gifPreviewUrl) {
+          URL.revokeObjectURL(gifPreviewUrl);
+          setGifPreviewUrl('');
+        }
+        setSelectedGifFile(null);
+        // 设置新的预览URL为上传后的真实URL
+        setPreviewGif(uploadedUrl);
+      }
+
+      // 更新values中的move_gif
+      const finalValues = {
+        ...values,
+        move_gif: gifUrl
+      };
+
       if (editingMove) {
         // 更新
-        const result = await updateMove(editingMove.id, values);
+        const result = await updateMove(editingMove.id, finalValues);
         if (result.error) {
           message.error('更新招式失败');
           return;
@@ -183,14 +346,14 @@ export default function MovesPage() {
         message.success('更新招式成功');
       } else {
         // 新增
-        const result = await createMove(values);
+        const result = await createMove(finalValues);
         if (result.error) {
           message.error('创建招式失败');
           return;
         }
         message.success('创建招式成功');
       }
-      setModalVisible(false);
+      handleModalClose(); // 使用统一的关闭处理
       loadMoves();
     } catch (error) {
       console.error('保存招式失败:', error);
@@ -359,7 +522,7 @@ export default function MovesPage() {
       <Modal
         title={editingMove ? '编辑招式' : '新增招式'}
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
+        onCancel={handleModalClose}
         footer={null}
         width={600}
       >
@@ -502,18 +665,49 @@ export default function MovesPage() {
             label="招式动图"
           >
             <div>
-              <Button 
-                type="dashed" 
-                style={{ width: '100%', marginBottom: 8 }}
-                onClick={() => {
-                  // TODO: 实现上传逻辑
-                  console.log('上传动图');
+              {/* 拖拽上传区域 */}
+              <div
+                style={{
+                  border: `2px dashed ${isDragOver ? '#1890ff' : '#d9d9d9'}`,
+                  borderRadius: '6px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  backgroundColor: isDragOver ? '#f0f8ff' : '#fafafa',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
                 }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={triggerFileSelect}
               >
-                上传动图
-              </Button>
-              {previewGif && (
-                <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                <InboxOutlined style={{ fontSize: '48px', color: '#999', marginBottom: '16px' }} />
+                <p style={{ margin: '0 0 8px 0', fontSize: '16px' }}>
+                  点击或拖拽文件到此区域上传
+                </p>
+                <p style={{ margin: 0, color: '#999' }}>
+                  支持 JPEG、PNG、GIF、WebP 格式，文件大小不超过 10MB
+                </p>
+              </div>
+
+              {/* 隐藏的文件输入 */}
+              <input
+                key={`gif-input-${modalVisible ? 'open' : 'closed'}-${editingMove?.id || 'new'}`}
+                ref={gifFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleGifFileSelect(file);
+                  }
+                }}
+              />
+
+              {/* 预览区域 */}
+              {(gifPreviewUrl || previewGif) && (
+                <div style={{ marginTop: 16, position: 'relative', display: 'inline-block' }}>
                   <div style={{ 
                     position: 'relative', 
                     display: 'inline-block',
@@ -522,7 +716,7 @@ export default function MovesPage() {
                     padding: '4px'
                   }}>
                     <Image
-                      src={previewGif}
+                      src={gifPreviewUrl || previewGif || undefined}
                       alt="招式动图预览"
                       width={120}
                       height={90}
@@ -554,6 +748,22 @@ export default function MovesPage() {
                       }}
                     />
                   </div>
+                  <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+                    {selectedGifFile ? (
+                      <span style={{ color: '#1890ff' }}>
+                        📎 {selectedGifFile.name} (将在提交时上传)
+                      </span>
+                    ) : (
+                      <span>当前图片</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 上传进度提示 */}
+              {gifUploading && (
+                <div style={{ marginTop: 8, color: '#1890ff' }}>
+                  正在上传GIF图片...
                 </div>
               )}
             </div>
@@ -568,7 +778,7 @@ export default function MovesPage() {
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setModalVisible(false)}>
+              <Button onClick={handleModalClose}>
                 取消
               </Button>
               <Button type="primary" htmlType="submit">
