@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined } from '@ant-design/icons';
 import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
-import { Move, MoveCategory, MoveSubCategory } from '@/types/admin';
+import { Move, MoveCategory } from '@/types/admin';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -17,10 +17,11 @@ export default function MovesPage() {
   const [form] = Form.useForm();
   const [subTypeOptions, setSubTypeOptions] = useState<{ value: string; label: string }[]>([]);
   const [categories, setCategories] = useState<MoveCategory[]>([]);
-  const [subCategories, setSubCategories] = useState<MoveSubCategory[]>([]);
+  const [previewVideo, setPreviewVideo] = useState<string>('');
+  const [previewGif, setPreviewGif] = useState<string>('');
 
   // 根据主类型更新子类型选项
-  const updateSubTypeOptions = async (mainType: string | null) => {
+  const updateSubTypeOptions = useCallback(async (mainType: string | null) => {
     if (!mainType) {
       setSubTypeOptions([]);
       form.setFieldValue('sub_type', undefined);
@@ -65,7 +66,7 @@ export default function MovesPage() {
       setSubTypeOptions([]);
       form.setFieldValue('sub_type', undefined);
     }
-  };
+  }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 加载招式分类数据
   const loadCategories = async () => {
@@ -107,6 +108,8 @@ export default function MovesPage() {
     setEditingMove(null);
     form.resetFields();
     setSubTypeOptions([]);
+    setPreviewVideo('');
+    setPreviewGif('');
     setModalVisible(true);
   };
 
@@ -119,9 +122,13 @@ export default function MovesPage() {
       move_diff: move.move_diff,
       move_desc: move.move_desc,
       move_url: move.move_url,
+      move_gif: move.move_gif,
       move_creater: move.move_creater,
       move_score: move.move_score
     });
+    // 设置预览状态
+    setPreviewGif(move.move_gif || '');
+    setPreviewVideo(move.move_url || '');
     // 根据主类型设置子类型选项
     updateSubTypeOptions(move.main_type);
     setModalVisible(true);
@@ -142,6 +149,18 @@ export default function MovesPage() {
     }
   };
 
+  // 删除动图预览
+  const handleDeleteGif = () => {
+    setPreviewGif('');
+    form.setFieldValue('move_gif', '');
+  };
+
+  // 删除视频预览
+  const handleDeleteVideo = () => {
+    setPreviewVideo('');
+    form.setFieldValue('move_url', '');
+  };
+
   const handleSubmit = async (values: {
     move_name: string;
     main_type: string;
@@ -149,6 +168,7 @@ export default function MovesPage() {
     move_diff: string;
     move_desc?: string;
     move_url?: string;
+    move_gif?: string;
     move_creater?: string;
     move_score: number;
   }) => {
@@ -204,6 +224,58 @@ export default function MovesPage() {
       render: (text: string) => {
         const color = text === '简单' ? 'green' : text === '中等' ? 'orange' : 'red';
         return <Tag color={color}>{text || '-'}</Tag>;
+      },
+    },
+    {
+      title: '动图预览',
+      dataIndex: 'move_gif',
+      key: 'move_gif',
+      width: 120,
+      render: (gifUrl: string, record: Move) => {
+        if (!gifUrl) {
+          return <span style={{ color: '#999' }}>无动图</span>;
+        }
+        return (
+          <Tooltip title="点击查看大图">
+            <Image
+              src={gifUrl}
+              alt={record.move_name || '招式动图'}
+              width={80}
+              height={60}
+              style={{ 
+                objectFit: 'cover',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+              preview={{
+                mask: <EyeOutlined />
+              }}
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: '视频预览',
+      dataIndex: 'move_url',
+      key: 'move_url',
+      width: 100,
+      render: (videoUrl: string) => {
+        if (!videoUrl) {
+          return <span style={{ color: '#999' }}>无视频</span>;
+        }
+        return (
+          <Tooltip title="点击在新标签页中预览视频">
+            <Button
+              type="link"
+              icon={<PlayCircleOutlined />}
+              onClick={() => window.open(videoUrl, '_blank')}
+              style={{ padding: 0 }}
+            >
+              预览
+            </Button>
+          </Tooltip>
+        );
       },
     },
     {
@@ -370,9 +442,121 @@ export default function MovesPage() {
 
           <Form.Item
             name="move_url"
-            label="招式视频链接"
+            label="招式视频"
           >
-            <Input placeholder="请输入招式视频链接" />
+            <div>
+              <Button 
+                type="dashed" 
+                style={{ width: '100%', marginBottom: 8 }}
+                onClick={() => {
+                  // TODO: 实现上传逻辑
+                  console.log('上传视频');
+                }}
+              >
+                上传视频
+              </Button>
+              {previewVideo && (
+                <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                  <div style={{ 
+                    position: 'relative', 
+                    display: 'inline-block',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '4px',
+                    padding: '4px'
+                  }}>
+                    <Button
+                      type="link"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => window.open(previewVideo, '_blank')}
+                      style={{ padding: 0, height: 'auto' }}
+                    >
+                      预览视频
+                    </Button>
+                    <Button
+                      type="text"
+                      icon={<CloseOutlined />}
+                      onClick={handleDeleteVideo}
+                      style={{ 
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        width: 20,
+                        height: 20,
+                        minWidth: 20,
+                        padding: 0,
+                        borderRadius: '50%',
+                        backgroundColor: '#ff4d4f',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '12px'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Form.Item>
+
+          <Form.Item
+            name="move_gif"
+            label="招式动图"
+          >
+            <div>
+              <Button 
+                type="dashed" 
+                style={{ width: '100%', marginBottom: 8 }}
+                onClick={() => {
+                  // TODO: 实现上传逻辑
+                  console.log('上传动图');
+                }}
+              >
+                上传动图
+              </Button>
+              {previewGif && (
+                <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                  <div style={{ 
+                    position: 'relative', 
+                    display: 'inline-block',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '4px',
+                    padding: '4px'
+                  }}>
+                    <Image
+                      src={previewGif}
+                      alt="招式动图预览"
+                      width={120}
+                      height={90}
+                      style={{ 
+                        objectFit: 'cover',
+                        borderRadius: '4px'
+                      }}
+                      preview={{
+                        mask: <EyeOutlined />
+                      }}
+                    />
+                    <Button
+                      type="text"
+                      icon={<CloseOutlined />}
+                      onClick={handleDeleteGif}
+                      style={{ 
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        width: 20,
+                        height: 20,
+                        minWidth: 20,
+                        padding: 0,
+                        borderRadius: '50%',
+                        backgroundColor: '#ff4d4f',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '12px'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </Form.Item>
 
           <Form.Item

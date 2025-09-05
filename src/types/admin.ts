@@ -34,6 +34,7 @@ export interface Move {
   move_diff: string | null;
   move_desc: string | null;
   move_url: string | null;
+  move_gif: string | null;
   move_creater: string | null;
   move_score: number | null;
 }
