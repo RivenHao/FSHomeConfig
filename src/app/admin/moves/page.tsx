@@ -412,7 +412,7 @@ export default function MovesPage() {
       move_name: move.move_name,
       main_type: move.main_type,
       sub_type: move.sub_type,
-      move_diff: move.move_diff,
+      move_diff: move.move_diff, // 直接使用数据库中的数字值
       move_desc: move.move_desc,
       move_url: move.move_url,
       move_gif: move.move_gif,
@@ -443,7 +443,7 @@ export default function MovesPage() {
     move_name: string;
     main_type: string;
     sub_type: string;
-    move_diff: string;
+    move_diff: number;
     move_desc?: string;
     move_url?: string;
     move_gif?: string;
@@ -546,9 +546,19 @@ export default function MovesPage() {
       title: '难度',
       dataIndex: 'move_diff',
       key: 'move_diff',
-      render: (text: string) => {
-        const color = text === '简单' ? 'green' : text === '中等' ? 'orange' : 'red';
-        return <Tag color={color}>{text || '-'}</Tag>;
+      render: (difficulty: number) => {
+        const getDifficultyDisplay = (diff: number) => {
+          switch (diff) {
+            case 1: return { text: '⭐ 1星 (入门)', color: 'green' };
+            case 2: return { text: '⭐⭐ 2星 (初级)', color: 'blue' };
+            case 3: return { text: '⭐⭐⭐ 3星 (中级)', color: 'orange' };
+            case 4: return { text: '⭐⭐⭐⭐ 4星 (高级)', color: 'red' };
+            case 5: return { text: '⭐⭐⭐⭐⭐ 5星 (专家)', color: 'purple' };
+            default: return { text: '-', color: 'default' };
+          }
+        };
+        const { text, color } = getDifficultyDisplay(difficulty);
+        return <Tag color={color}>{text}</Tag>;
       },
     },
     {
@@ -744,9 +754,11 @@ export default function MovesPage() {
             rules={[{ required: true, message: '请选择难度等级' }]}
           >
             <Select placeholder="请选择难度等级">
-              <Option value="简单">简单</Option>
-              <Option value="中等">中等</Option>
-              <Option value="困难">困难</Option>
+              <Option value={1}>⭐ 1星 (入门)</Option>
+              <Option value={2}>⭐⭐ 2星 (初级)</Option>
+              <Option value={3}>⭐⭐⭐ 3星 (中级)</Option>
+              <Option value={4}>⭐⭐⭐⭐ 4星 (高级)</Option>
+              <Option value={5}>⭐⭐⭐⭐⭐ 5星 (专家)</Option>
             </Select>
           </Form.Item>
 
