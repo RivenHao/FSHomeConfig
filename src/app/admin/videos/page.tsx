@@ -1,21 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Input, Select, Button, Space, Tag, Typography, Row, Col, message, Modal, Form, Image } from 'antd';
-import { ReloadOutlined, EyeOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Input, Select, Button, Space, Tag, Typography, message, Modal, Form, Image } from 'antd';
+import { EyeOutlined, CheckCircleOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { getVideoSubmissions, reviewVideoSubmission } from '@/lib/admin-queries';
 import { UserMoveSubmission } from '@/types/admin';
+import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
-const { Search } = Input;
 const { Option } = Select;
 
 export default function VideosPage() {
   const [videos, setVideos] = useState<UserMoveSubmission[]>([]);
+  const [filteredVideos, setFilteredVideos] = useState<UserMoveSubmission[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [filters, setFilters] = useState({
+    search: '',
+    status: ''
+  });
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<UserMoveSubmission | null>(null);
   const [reviewForm] = Form.useForm();
@@ -28,25 +31,20 @@ export default function VideosPage() {
   const loadVideos = async (page = 1, pageSize = pagination.pageSize) => {
     setLoading(true);
     try {
-      console.log('开始加载视频数据...', { searchValue, statusFilter, page, pageSize });
       const result = await getVideoSubmissions({
         page,
         pageSize,
-        search: searchValue,
-        status: statusFilter || undefined
+        search: filters.search,
+        status: filters.status || undefined
       });
       
-      console.log('API 返回结果:', result);
-      
       if (result.error) {
-        console.error('API 错误:', result.error);
         message.error('加载视频数据失败');
         return;
       }
       
-      console.log('设置视频数据:', result.data);
-      console.log('筛选条件:', { searchValue, statusFilter });
       setVideos(result.data || []);
+      setFilteredVideos(result.data || []);
       setPagination(prev => ({
         ...prev,
         current: page,
@@ -60,64 +58,46 @@ export default function VideosPage() {
     }
   };
 
-  const loadVideosWithStatus = async (status: string) => {
-    setLoading(true);
-    try {
-      console.log('开始加载视频数据（带状态筛选）...', { searchValue, status });
-      const result = await getVideoSubmissions({
-        page: 1,
-        pageSize: 1000, // 一次性加载所有视频
-        search: searchValue,
-        status: status || undefined
-      });
-      
-      console.log('API 返回结果:', result);
-      
-      if (result.error) {
-        console.error('API 错误:', result.error);
-        message.error('加载视频数据失败');
-        return;
-      }
-      
-      console.log('设置视频数据:', result.data);
-      console.log('筛选条件:', { searchValue, status });
-      setVideos(result.data || []);
-    } catch (error) {
-      console.error('加载视频数据失败:', error);
-      message.error('加载视频数据失败');
-    } finally {
-      setLoading(false);
+  // 筛选函数
+  const applyFilters = useCallback(() => {
+    let filtered = [...videos];
+
+    // 按搜索条件筛选
+    if (filters.search) {
+      filtered = filtered.filter(video => 
+        video.moves?.move_name?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        video.user_profiles?.nickname?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        video.user_profiles?.email?.toLowerCase().includes(filters.search.toLowerCase())
+      );
     }
+
+    // 按状态筛选
+    if (filters.status) {
+      filtered = filtered.filter(video => video.status === filters.status);
+    }
+
+    setFilteredVideos(filtered);
+  }, [videos, filters]);
+
+  // 当筛选条件或数据变化时重新筛选
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // 处理筛选条件变化
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
-  const loadVideosWithoutFilter = async () => {
-    setLoading(true);
-    try {
-      console.log('开始加载所有视频数据（无筛选）...');
-      const result = await getVideoSubmissions({
-        page: 1,
-        pageSize: 1000, // 一次性加载所有视频
-        search: '',
-        status: undefined
-      });
-      
-      console.log('API 返回结果:', result);
-      
-      if (result.error) {
-        console.error('API 错误:', result.error);
-        message.error('加载视频数据失败');
-        return;
-      }
-      
-      console.log('设置视频数据:', result.data);
-      console.log('筛选条件: 无筛选');
-      setVideos(result.data || []);
-    } catch (error) {
-      console.error('加载视频数据失败:', error);
-      message.error('加载视频数据失败');
-    } finally {
-      setLoading(false);
-    }
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      status: ''
+    });
   };
 
   useEffect(() => {
@@ -125,28 +105,28 @@ export default function VideosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在组件挂载时加载一次
 
-  const handleSearch = (value: string) => {
-    setSearchValue(value);
-    setTimeout(() => {
-      loadVideos(1);
-    }, 500);
-  };
-
-  const handleStatusFilter = (value: string) => {
-    console.log('状态筛选值变化:', value);
-    setStatusFilter(value);
-    // 直接传递状态值，不依赖状态变量
-    setTimeout(() => {
-      loadVideos(1);
-    }, 300);
-  };
-
-  const handleReset = () => {
-    setSearchValue('');
-    setStatusFilter('');
-    // 重置后重新加载所有数据，不使用筛选条件
-    loadVideosWithoutFilter();
-  };
+  // 筛选配置
+  const filterOptions: FilterOption[] = [
+    {
+      key: 'search',
+      label: '搜索内容',
+      type: 'input',
+      placeholder: '搜索招式名或用户昵称',
+      style: { width: 200 }
+    },
+    {
+      key: 'status',
+      label: '审核状态',
+      type: 'select',
+      placeholder: '选择审核状态',
+      style: { width: 150 },
+      options: [
+        { value: 'pending', label: '待审核' },
+        { value: 'approved', label: '已通过' },
+        { value: 'rejected', label: '已拒绝' }
+      ]
+    }
+  ];
 
   const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
     const { current, pageSize } = paginationInfo;
@@ -304,49 +284,23 @@ export default function VideosPage() {
     <div>
       <Title level={2}>视频审核</Title>
       
-      {/* 筛选区域 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={12} md={8}>
-            <Search
-              placeholder="搜索招式名或用户昵称"
-              allowClear
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onSearch={handleSearch}
-              style={{ width: '100%' }}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Select
-              placeholder="审核状态"
-              allowClear
-              value={statusFilter}
-              onChange={handleStatusFilter}
-              style={{ width: '100%' }}
-            >
-              <Option value="pending">待审核</Option>
-              <Option value="approved">已通过</Option>
-              <Option value="rejected">已拒绝</Option>
-            </Select>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Button 
-              icon={<ReloadOutlined />} 
-              onClick={handleReset}
-              style={{ width: '100%' }}
-            >
-              重置
-            </Button>
-          </Col>
-        </Row>
-      </Card>
+      {/* 筛选组件 */}
+      <FilterPanel
+        title="筛选条件"
+        filters={filters}
+        filterOptions={filterOptions}
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters}
+        showRefreshButton={true}
+        onRefresh={() => loadVideos()}
+        resultCount={filteredVideos.length}
+      />
 
       {/* 视频列表 */}
       <Card>
         <Table
           columns={columns}
-          dataSource={videos}
+          dataSource={filteredVideos}
           rowKey="id"
           loading={loading}
           pagination={{

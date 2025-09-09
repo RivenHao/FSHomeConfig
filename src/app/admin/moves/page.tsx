@@ -5,6 +5,7 @@ import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popcon
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
 import { Move, MoveCategory } from '@/types/admin';
+import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -300,7 +301,7 @@ export default function MovesPage() {
     if (!mainType) {
       setSubTypeOptions([]);
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
       return;
     }
@@ -311,7 +312,7 @@ export default function MovesPage() {
       if (!category) {
         setSubTypeOptions([]);
         if (!preserveValue) {
-          form.setFieldValue('sub_type', undefined);
+        form.setFieldValue('sub_type', undefined);
         }
         return;
       }
@@ -340,13 +341,13 @@ export default function MovesPage() {
       setSubTypeOptions(options);
       // 只有在非保留模式下才清空子类型选择
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
     } catch (error) {
       console.error('获取子类型选项失败:', error);
       setSubTypeOptions([]);
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
     }
   }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -451,6 +452,42 @@ export default function MovesPage() {
       move_diff: ''
     });
   };
+
+  // 筛选配置
+  const filterOptions: FilterOption[] = [
+    {
+      key: 'move_name',
+      label: '招式名称',
+      type: 'input',
+      placeholder: '搜索招式名称',
+      style: { width: 200 }
+    },
+    {
+      key: 'main_type',
+      label: '主类型',
+      type: 'select',
+      placeholder: '选择主类型',
+      style: { width: 150 },
+      options: categories.map(category => ({
+        value: category.category_code,
+        label: category.category_name
+      }))
+    },
+    {
+      key: 'move_diff',
+      label: '难度等级',
+      type: 'select',
+      placeholder: '选择难度',
+      style: { width: 150 },
+      options: [
+        { value: '1', label: '⭐ 1星 (入门)' },
+        { value: '2', label: '⭐⭐ 2星 (初级)' },
+        { value: '3', label: '⭐⭐⭐ 3星 (中级)' },
+        { value: '4', label: '⭐⭐⭐⭐ 4星 (高级)' },
+        { value: '5', label: '⭐⭐⭐⭐⭐ 5星 (专家)' }
+      ]
+    }
+  ];
 
   useEffect(() => {
     loadCategories();
@@ -698,6 +735,32 @@ export default function MovesPage() {
       render: (score: number) => <span style={{ fontWeight: 'bold', color: '#1890ff' }}>{score || 0}</span>,
     },
     {
+      title: '招式描述',
+      dataIndex: 'move_desc',
+      key: 'move_desc',
+      width: 200,
+      render: (desc: string) => {
+        if (!desc) {
+          return <span style={{ color: '#999' }}>无描述</span>;
+        }
+        return (
+          <Tooltip title={desc} placement="topLeft">
+            <div
+              style={{
+                width: '180px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              {desc}
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: '创建者',
       dataIndex: 'move_creater',
       key: 'move_creater',
@@ -757,53 +820,14 @@ export default function MovesPage() {
         }
       >
         {/* 筛选组件 */}
-        <Card 
-          size="small" 
-          style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+        <FilterPanel
           title="筛选条件"
-        >
-          <Space wrap>
-            <Input
-              placeholder="搜索招式名称"
-              value={filters.move_name}
-              onChange={(e) => handleFilterChange('move_name', e.target.value)}
-              style={{ width: 200 }}
-              allowClear
-            />
-            <Select
-              placeholder="选择主类型"
-              value={filters.main_type}
-              onChange={(value) => handleFilterChange('main_type', value)}
-              style={{ width: 150 }}
-              allowClear
-            >
-              {categories.map(category => (
-                <Option key={category.id} value={category.category_code}>
-                  {category.category_name}
-                </Option>
-              ))}
-            </Select>
-            <Select
-              placeholder="选择难度"
-              value={filters.move_diff}
-              onChange={(value) => handleFilterChange('move_diff', value)}
-              style={{ width: 150 }}
-              allowClear
-            >
-              <Option value="1">⭐ 1星 (入门)</Option>
-              <Option value="2">⭐⭐ 2星 (初级)</Option>
-              <Option value="3">⭐⭐⭐ 3星 (中级)</Option>
-              <Option value="4">⭐⭐⭐⭐ 4星 (高级)</Option>
-              <Option value="5">⭐⭐⭐⭐⭐ 5星 (专家)</Option>
-            </Select>
-            <Button onClick={resetFilters}>
-              重置筛选
-            </Button>
-            <span style={{ color: '#666', fontSize: '14px' }}>
-              共 {filteredMoves.length} 条记录
-            </span>
-          </Space>
-        </Card>
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={handleFilterChange}
+          onReset={resetFilters}
+          resultCount={filteredMoves.length}
+        />
 
         <Table
           columns={columns}
