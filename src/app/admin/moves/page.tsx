@@ -20,7 +20,7 @@ export default function MovesPage() {
   const [categories, setCategories] = useState<MoveCategory[]>([]);
   const [previewVideo, setPreviewVideo] = useState<string>('');
   const [previewGif, setPreviewGif] = useState<string>('');
-  
+
   // 筛选相关状态
   const [filteredMoves, setFilteredMoves] = useState<Move[]>([]);
   const [filters, setFilters] = useState({
@@ -28,14 +28,14 @@ export default function MovesPage() {
     main_type: '',
     move_diff: ''
   });
-  
+
   // GIF上传相关状态
   const [selectedGifFile, setSelectedGifFile] = useState<File | null>(null);
   const [gifPreviewUrl, setGifPreviewUrl] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState(false);
   const [gifUploading, setGifUploading] = useState(false);
   const gifFileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // 视频上传相关状态
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string>('');
@@ -68,11 +68,11 @@ export default function MovesPage() {
     }
 
     setSelectedGifFile(file);
-    
+
     // 创建本地预览URL
     const previewUrl = URL.createObjectURL(file);
     setGifPreviewUrl(previewUrl);
-    
+
     message.success('图片已选择，提交表单时将上传到云存储');
   };
 
@@ -81,7 +81,7 @@ export default function MovesPage() {
     if (!file) return null;
 
     setGifUploading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -98,7 +98,7 @@ export default function MovesPage() {
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         message.success('GIF图片上传成功');
         return result.url;
@@ -151,7 +151,7 @@ export default function MovesPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       handleGifFileSelect(files[0]);
@@ -188,11 +188,11 @@ export default function MovesPage() {
     }
 
     setSelectedVideoFile(file);
-    
+
     // 创建本地预览URL
     const previewUrl = URL.createObjectURL(file);
     setVideoPreviewUrl(previewUrl);
-    
+
     message.success('视频已选择，提交表单时将上传到云存储');
   };
 
@@ -201,7 +201,7 @@ export default function MovesPage() {
     if (!file) return null;
 
     setVideoUploading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -218,7 +218,7 @@ export default function MovesPage() {
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         message.success('视频上传成功');
         return result.url;
@@ -271,7 +271,7 @@ export default function MovesPage() {
   const handleVideoDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsVideoDragOver(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       handleVideoFileSelect(files[0]);
@@ -301,7 +301,7 @@ export default function MovesPage() {
     if (!mainType) {
       setSubTypeOptions([]);
       if (!preserveValue) {
-      form.setFieldValue('sub_type', undefined);
+        form.setFieldValue('sub_type', undefined);
       }
       return;
     }
@@ -312,7 +312,7 @@ export default function MovesPage() {
       if (!category) {
         setSubTypeOptions([]);
         if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+          form.setFieldValue('sub_type', undefined);
         }
         return;
       }
@@ -341,13 +341,13 @@ export default function MovesPage() {
       setSubTypeOptions(options);
       // 只有在非保留模式下才清空子类型选择
       if (!preserveValue) {
-      form.setFieldValue('sub_type', undefined);
+        form.setFieldValue('sub_type', undefined);
       }
     } catch (error) {
       console.error('获取子类型选项失败:', error);
       setSubTypeOptions([]);
       if (!preserveValue) {
-      form.setFieldValue('sub_type', undefined);
+        form.setFieldValue('sub_type', undefined);
       }
     }
   }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -390,8 +390,9 @@ export default function MovesPage() {
 
     // 按招式名称筛选
     if (filters.move_name) {
-      filtered = filtered.filter(move => 
-        move.move_name?.toLowerCase().includes(filters.move_name.toLowerCase())
+      filtered = filtered.filter(move =>
+        move.move_name?.toLowerCase().includes(filters.move_name.toLowerCase()) ||
+        move.move_cn?.toLowerCase().includes(filters.move_name.toLowerCase())
       );
     }
 
@@ -410,20 +411,20 @@ export default function MovesPage() {
       const nameA = a.move_name || '';
       const nameB = b.move_name || '';
       const searchTerm = filters.move_name?.toLowerCase() || '';
-      
+
       // 如果有搜索条件，优先显示完全匹配的
       if (searchTerm) {
         const aExactMatch = nameA.toLowerCase() === searchTerm;
         const bExactMatch = nameB.toLowerCase() === searchTerm;
-        
+
         // 完全匹配的排在前面
         if (aExactMatch && !bExactMatch) return -1;
         if (!aExactMatch && bExactMatch) return 1;
-        
+
         // 如果都是完全匹配或都不是完全匹配，按拼音排序
         return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
       }
-      
+
       // 没有搜索条件时，直接按拼音排序
       return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
     });
@@ -516,15 +517,16 @@ export default function MovesPage() {
     resetGifUploadState();
     // 重置视频上传状态（编辑时清理本地上传状态）
     resetVideoUploadState();
-    
+
     // 先加载子类型选项（保留原有的sub_type值）
     if (move.main_type) {
       await updateSubTypeOptions(move.main_type, true);
     }
-    
+
     // 然后设置表单值（包括子类型）
     form.setFieldsValue({
       move_name: move.move_name,
+      move_cn: move.move_cn,
       main_type: move.main_type,
       sub_type: move.sub_type,
       move_diff: move.move_diff, // 直接使用数据库中的数字值
@@ -534,7 +536,7 @@ export default function MovesPage() {
       move_creater: move.move_creater,
       move_score: move.move_score
     });
-    
+
     setModalVisible(true);
   };
 
@@ -556,6 +558,7 @@ export default function MovesPage() {
 
   const handleSubmit = async (values: {
     move_name: string;
+    move_cn?: string;
     main_type: string;
     sub_type: string;
     move_diff: number;
@@ -575,7 +578,7 @@ export default function MovesPage() {
           return;
         }
         gifUrl = uploadedUrl;
-        
+
         // 上传成功后清理本地预览状态
         if (gifPreviewUrl) {
           URL.revokeObjectURL(gifPreviewUrl);
@@ -595,7 +598,7 @@ export default function MovesPage() {
           return;
         }
         videoUrl = uploadedUrl;
-        
+
         // 上传成功后清理本地预览状态
         if (videoPreviewUrl) {
           URL.revokeObjectURL(videoPreviewUrl);
@@ -643,7 +646,16 @@ export default function MovesPage() {
       title: '招式名称',
       dataIndex: 'move_name',
       key: 'move_name',
-      render: (text: string) => <strong>{text || '-'}</strong>,
+      render: (text: string, record: Move) => (
+        <div>
+          <strong>{record.move_cn || text || '-'}</strong>
+          {record.move_cn && text && record.move_cn !== text && (
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+              {text}
+            </div>
+          )}
+        </div>
+      ),
     },
     {
       title: '主类型',
@@ -692,7 +704,7 @@ export default function MovesPage() {
               alt={record.move_name || '招式动图'}
               width={80}
               height={60}
-              style={{ 
+              style={{
                 objectFit: 'cover',
                 borderRadius: '4px',
                 cursor: 'pointer'
@@ -863,11 +875,19 @@ export default function MovesPage() {
           </Form.Item>
 
           <Form.Item
+            name="move_cn"
+            label="招式中文名"
+            tooltip="可选字段，用于显示招式的中文名称"
+          >
+            <Input placeholder="请输入招式中文名（可选）" />
+          </Form.Item>
+
+          <Form.Item
             name="main_type"
             label="主类型"
             rules={[{ required: true, message: '请选择主类型' }]}
           >
-            <Select 
+            <Select
               placeholder="请选择主类型"
               onChange={(value) => updateSubTypeOptions(value, false)}
             >
@@ -887,7 +907,7 @@ export default function MovesPage() {
             label="子类型"
             rules={[{ required: true, message: '请选择子类型' }]}
           >
-            <Select 
+            <Select
               placeholder="请选择子类型"
               disabled={subTypeOptions.length === 0}
             >
@@ -976,8 +996,8 @@ export default function MovesPage() {
               {/* 预览区域 */}
               {(videoPreviewUrl || previewVideo) && (
                 <div style={{ marginTop: 16, position: 'relative', display: 'inline-block' }}>
-                  <div style={{ 
-                    position: 'relative', 
+                  <div style={{
+                    position: 'relative',
                     display: 'inline-block',
                     border: '1px solid #d9d9d9',
                     borderRadius: '4px',
@@ -995,7 +1015,7 @@ export default function MovesPage() {
                       type="text"
                       icon={<CloseOutlined />}
                       onClick={handleDeleteVideo}
-                      style={{ 
+                      style={{
                         position: 'absolute',
                         top: -8,
                         right: -8,
@@ -1080,8 +1100,8 @@ export default function MovesPage() {
               {/* 预览区域 */}
               {(gifPreviewUrl || previewGif) && (
                 <div style={{ marginTop: 16, position: 'relative', display: 'inline-block' }}>
-                  <div style={{ 
-                    position: 'relative', 
+                  <div style={{
+                    position: 'relative',
                     display: 'inline-block',
                     border: '1px solid #d9d9d9',
                     borderRadius: '4px',
@@ -1092,7 +1112,7 @@ export default function MovesPage() {
                       alt="招式动图预览"
                       width={120}
                       height={90}
-                      style={{ 
+                      style={{
                         objectFit: 'cover',
                         borderRadius: '4px'
                       }}
@@ -1104,7 +1124,7 @@ export default function MovesPage() {
                       type="text"
                       icon={<CloseOutlined />}
                       onClick={handleDeleteGif}
-                      style={{ 
+                      style={{
                         position: 'absolute',
                         top: -8,
                         right: -8,
