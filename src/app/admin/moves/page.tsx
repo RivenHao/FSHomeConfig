@@ -20,6 +20,14 @@ export default function MovesPage() {
   const [previewVideo, setPreviewVideo] = useState<string>('');
   const [previewGif, setPreviewGif] = useState<string>('');
   
+  // 筛选相关状态
+  const [filteredMoves, setFilteredMoves] = useState<Move[]>([]);
+  const [filters, setFilters] = useState({
+    move_name: '',
+    main_type: '',
+    move_diff: ''
+  });
+  
   // GIF上传相关状态
   const [selectedGifFile, setSelectedGifFile] = useState<File | null>(null);
   const [gifPreviewUrl, setGifPreviewUrl] = useState<string>('');
@@ -366,12 +374,82 @@ export default function MovesPage() {
         return;
       }
       setMoves(result.data || []);
+      setFilteredMoves(result.data || []); // 初始化筛选后的数据
     } catch (error) {
       console.error('加载招式数据失败:', error);
       message.error('加载招式数据失败');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 筛选函数
+  const applyFilters = useCallback(() => {
+    let filtered = [...moves];
+
+    // 按招式名称筛选
+    if (filters.move_name) {
+      filtered = filtered.filter(move => 
+        move.move_name?.toLowerCase().includes(filters.move_name.toLowerCase())
+      );
+    }
+
+    // 按主类型筛选
+    if (filters.main_type) {
+      filtered = filtered.filter(move => move.main_type === filters.main_type);
+    }
+
+    // 按难度筛选
+    if (filters.move_diff) {
+      filtered = filtered.filter(move => move.move_diff === parseInt(filters.move_diff));
+    }
+
+    // 按招式名称排序（完全匹配优先，然后按拼音排序）
+    filtered.sort((a, b) => {
+      const nameA = a.move_name || '';
+      const nameB = b.move_name || '';
+      const searchTerm = filters.move_name?.toLowerCase() || '';
+      
+      // 如果有搜索条件，优先显示完全匹配的
+      if (searchTerm) {
+        const aExactMatch = nameA.toLowerCase() === searchTerm;
+        const bExactMatch = nameB.toLowerCase() === searchTerm;
+        
+        // 完全匹配的排在前面
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+        
+        // 如果都是完全匹配或都不是完全匹配，按拼音排序
+        return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+      }
+      
+      // 没有搜索条件时，直接按拼音排序
+      return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+    });
+
+    setFilteredMoves(filtered);
+  }, [moves, filters]);
+
+  // 当筛选条件或数据变化时重新筛选
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // 处理筛选条件变化
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      move_name: '',
+      main_type: '',
+      move_diff: ''
+    });
   };
 
   useEffect(() => {
@@ -678,9 +756,58 @@ export default function MovesPage() {
           </Space>
         }
       >
+        {/* 筛选组件 */}
+        <Card 
+          size="small" 
+          style={{ marginBottom: 16, backgroundColor: '#fafafa' }}
+          title="筛选条件"
+        >
+          <Space wrap>
+            <Input
+              placeholder="搜索招式名称"
+              value={filters.move_name}
+              onChange={(e) => handleFilterChange('move_name', e.target.value)}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Select
+              placeholder="选择主类型"
+              value={filters.main_type}
+              onChange={(value) => handleFilterChange('main_type', value)}
+              style={{ width: 150 }}
+              allowClear
+            >
+              {categories.map(category => (
+                <Option key={category.id} value={category.category_code}>
+                  {category.category_name}
+                </Option>
+              ))}
+            </Select>
+            <Select
+              placeholder="选择难度"
+              value={filters.move_diff}
+              onChange={(value) => handleFilterChange('move_diff', value)}
+              style={{ width: 150 }}
+              allowClear
+            >
+              <Option value="1">⭐ 1星 (入门)</Option>
+              <Option value="2">⭐⭐ 2星 (初级)</Option>
+              <Option value="3">⭐⭐⭐ 3星 (中级)</Option>
+              <Option value="4">⭐⭐⭐⭐ 4星 (高级)</Option>
+              <Option value="5">⭐⭐⭐⭐⭐ 5星 (专家)</Option>
+            </Select>
+            <Button onClick={resetFilters}>
+              重置筛选
+            </Button>
+            <span style={{ color: '#666', fontSize: '14px' }}>
+              共 {filteredMoves.length} 条记录
+            </span>
+          </Space>
+        </Card>
+
         <Table
           columns={columns}
-          dataSource={moves}
+          dataSource={filteredMoves}
           rowKey="id"
           loading={loading}
           pagination={{
