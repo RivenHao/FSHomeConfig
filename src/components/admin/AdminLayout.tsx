@@ -94,7 +94,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     {
       key: '/admin/videos',
       icon: <VideoCameraOutlined />,
-      label: '视频审核',
+      label: '招式视频审核',
+    },
+    {
+      key: '/admin/community-videos',
+      icon: <VideoCameraOutlined />,
+      label: '社区交流视频审核',
     },
     {
       key: '/admin/tips',
