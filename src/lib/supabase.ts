@@ -13,4 +13,5 @@ export const TABLES = {
   USER_MOVE_SUBMISSIONS: 'user_move_submissions',
   MOVE_TIPS: 'move_tips',
   USER_MOVES_UNLOCK: 'user_moves_unlock',
+  COMMUNITY_VIDEOS: 'community_videos',
 } as const;

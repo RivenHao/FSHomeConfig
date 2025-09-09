@@ -17,6 +17,7 @@ const { Title, Text } = Typography;
 interface DashboardStats {
   totalUsers: number;
   pendingVideos: number;
+  pendingCommunityVideos: number;
   pendingTips: number;
   totalMoves: number;
 }
@@ -43,12 +44,20 @@ export default function DashboardPage() {
 
   const quickActions = [
     {
-      title: '审核视频',
-      description: '处理待审核的用户视频提交',
+      title: '审核招式视频',
+      description: '处理待审核的用户招式视频提交',
       icon: <VideoCameraOutlined style={{ fontSize: 24, color: '#1890ff' }} />,
       action: () => router.push('/admin/videos'),
       count: stats?.pendingVideos || 0,
       color: '#1890ff',
+    },
+    {
+      title: '审核社区视频',
+      description: '处理待审核的社区交流视频',
+      icon: <VideoCameraOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
+      action: () => router.push('/admin/community-videos'),
+      count: stats?.pendingCommunityVideos || 0,
+      color: '#fa8c16',
     },
     {
       title: '审核心得',
@@ -95,10 +104,20 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="待审核视频"
+              title="待审核招式视频"
               value={stats?.pendingVideos || 0}
               prefix={<VideoCameraOutlined />}
               valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="待审核社区视频"
+              value={stats?.pendingCommunityVideos || 0}
+              prefix={<VideoCameraOutlined />}
+              valueStyle={{ color: '#fa8c16' }}
             />
           </Card>
         </Col>
@@ -199,7 +218,8 @@ export default function DashboardPage() {
             <List
               size="small"
               dataSource={[
-                { type: '视频审核', count: stats?.pendingVideos || 0, priority: '高' },
+                { type: '招式视频审核', count: stats?.pendingVideos || 0, priority: '高' },
+                { type: '社区视频审核', count: stats?.pendingCommunityVideos || 0, priority: '高' },
                 { type: '心得审核', count: stats?.pendingTips || 0, priority: '中' },
                 { type: '用户反馈', count: 3, priority: '低' },
                 { type: '系统维护', count: 1, priority: '中' },

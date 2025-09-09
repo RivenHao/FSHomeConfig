@@ -135,3 +135,25 @@ export interface MoveCategoryWithSub {
   sub_sort?: number;
   sub_active?: boolean;
 }
+
+// 社区交流视频类型
+export interface CommunityVideo {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  video_url: string;
+  thumbnail_url: string | null;
+  duration: number | null;
+  file_size: number | null;
+  tags: string[] | null;
+  is_public: boolean | null;
+  view_count: number | null;
+  like_count: number | null;
+  comment_count: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  // 关联数据
+  user_profiles?: { nickname: string | null; email: string | null };
+}

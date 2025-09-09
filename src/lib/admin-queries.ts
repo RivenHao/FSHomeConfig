@@ -1,5 +1,5 @@
 import { supabase, TABLES } from './supabase';
-import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory, MoveCategoryWithSub } from '@/types/admin';
+import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory, MoveCategoryWithSub, CommunityVideo } from '@/types/admin';
 import { getCurrentAdmin } from './admin-auth';
 
 // 获取用户列表
@@ -400,11 +400,13 @@ export async function getDashboardStats() {
   const [
     { count: totalUsers },
     { count: pendingVideos },
+    { count: pendingCommunityVideos },
     { count: pendingTips },
     { count: totalMoves }
   ] = await Promise.all([
     supabase.from(TABLES.USER_PROFILES).select('*', { count: 'exact', head: true }),
     supabase.from(TABLES.USER_MOVE_SUBMISSIONS).select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from(TABLES.COMMUNITY_VIDEOS).select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from(TABLES.MOVE_TIPS).select('*', { count: 'exact', head: true }).eq('is_approved', false),
     supabase.from(TABLES.MOVES).select('*', { count: 'exact', head: true })
   ]);
@@ -412,6 +414,7 @@ export async function getDashboardStats() {
   return {
     totalUsers: totalUsers || 0,
     pendingVideos: pendingVideos || 0,
+    pendingCommunityVideos: pendingCommunityVideos || 0,
     pendingTips: pendingTips || 0,
     totalMoves: totalMoves || 0
   };
@@ -566,6 +569,106 @@ export async function getAllMoveCategories() {
 
     return { data, error: null };
   } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// ========================================
+// 社区交流视频管理函数
+// ========================================
+
+// 获取社区交流视频列表
+export async function getCommunityVideos(params: PaginationParams & FilterParams) {
+  let query = supabase
+    .from(TABLES.COMMUNITY_VIDEOS)
+    .select('*', { count: 'exact' });
+
+  // 应用筛选条件
+  if (params.status) {
+    query = query.eq('status', params.status);
+  }
+  if (params.search) {
+    query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+  }
+  if (params.date_range && params.date_range.length === 2) {
+    query = query.gte('created_at', params.date_range[0])
+                 .lte('created_at', params.date_range[1]);
+  }
+
+  // 应用分页
+  const from = (params.page - 1) * params.pageSize;
+  const to = from + params.pageSize - 1;
+  
+  const { data, error, count } = await query
+    .range(from, to)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) {
+    return { data: null, error, total: count || 0 };
+  }
+
+  // 查询用户信息
+  const enrichedData = await Promise.all(
+    data.map(async (video) => {
+      const userResult = await supabase
+        .from(TABLES.USER_PROFILES)
+        .select('nickname, email')
+        .eq('id', video.user_id)
+        .single();
+
+      return {
+        ...video,
+        user_profiles: userResult.data || { nickname: '未知用户', email: '未知邮箱' }
+      };
+    })
+  );
+
+  return { data: enrichedData, error: null, total: count || 0 };
+}
+
+// 审核社区交流视频
+export async function reviewCommunityVideo(id: string, status: 'approved' | 'rejected', adminNote?: string) {
+  try {
+    console.log('审核社区交流视频，ID:', id, '状态:', status);
+    
+    // 查询视频记录
+    const { data: video, error: videoError } = await supabase
+      .from(TABLES.COMMUNITY_VIDEOS)
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (videoError || !video) {
+      console.error('查询视频记录失败:', videoError);
+      return { data: null, error: videoError || new Error('找不到视频记录') };
+    }
+
+    console.log('找到视频记录:', video);
+
+    // 检查是否已经审核过
+    if (video.status !== 'pending') {
+      return { data: null, error: new Error(`该视频已经审核过，当前状态: ${video.status}`) };
+    }
+
+    // 更新视频状态
+    console.log('开始更新视频状态...');
+    const { error: updateError } = await supabase
+      .from(TABLES.COMMUNITY_VIDEOS)
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('更新视频状态失败:', updateError);
+      return { data: null, error: updateError };
+    }
+
+    console.log('社区交流视频审核成功');
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    console.error('审核社区交流视频异常:', error);
     return { data: null, error: error as Error };
   }
 }
