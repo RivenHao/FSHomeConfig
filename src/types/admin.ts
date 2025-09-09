@@ -37,6 +37,7 @@ export interface Move {
   move_gif: string | null;
   move_creater: string | null;
   move_score: number | null;
+  move_cn: string | null;
 }
 
 // 用户招式提交类型
