@@ -5,6 +5,7 @@ import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popcon
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
 import { Move, MoveCategory } from '@/types/admin';
+import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -19,6 +20,14 @@ export default function MovesPage() {
   const [categories, setCategories] = useState<MoveCategory[]>([]);
   const [previewVideo, setPreviewVideo] = useState<string>('');
   const [previewGif, setPreviewGif] = useState<string>('');
+  
+  // 筛选相关状态
+  const [filteredMoves, setFilteredMoves] = useState<Move[]>([]);
+  const [filters, setFilters] = useState({
+    move_name: '',
+    main_type: '',
+    move_diff: ''
+  });
   
   // GIF上传相关状态
   const [selectedGifFile, setSelectedGifFile] = useState<File | null>(null);
@@ -292,7 +301,7 @@ export default function MovesPage() {
     if (!mainType) {
       setSubTypeOptions([]);
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
       return;
     }
@@ -303,7 +312,7 @@ export default function MovesPage() {
       if (!category) {
         setSubTypeOptions([]);
         if (!preserveValue) {
-          form.setFieldValue('sub_type', undefined);
+        form.setFieldValue('sub_type', undefined);
         }
         return;
       }
@@ -332,13 +341,13 @@ export default function MovesPage() {
       setSubTypeOptions(options);
       // 只有在非保留模式下才清空子类型选择
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
     } catch (error) {
       console.error('获取子类型选项失败:', error);
       setSubTypeOptions([]);
       if (!preserveValue) {
-        form.setFieldValue('sub_type', undefined);
+      form.setFieldValue('sub_type', undefined);
       }
     }
   }, [categories]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -366,6 +375,7 @@ export default function MovesPage() {
         return;
       }
       setMoves(result.data || []);
+      setFilteredMoves(result.data || []); // 初始化筛选后的数据
     } catch (error) {
       console.error('加载招式数据失败:', error);
       message.error('加载招式数据失败');
@@ -373,6 +383,111 @@ export default function MovesPage() {
       setLoading(false);
     }
   };
+
+  // 筛选函数
+  const applyFilters = useCallback(() => {
+    let filtered = [...moves];
+
+    // 按招式名称筛选
+    if (filters.move_name) {
+      filtered = filtered.filter(move => 
+        move.move_name?.toLowerCase().includes(filters.move_name.toLowerCase())
+      );
+    }
+
+    // 按主类型筛选
+    if (filters.main_type) {
+      filtered = filtered.filter(move => move.main_type === filters.main_type);
+    }
+
+    // 按难度筛选
+    if (filters.move_diff) {
+      filtered = filtered.filter(move => move.move_diff === parseInt(filters.move_diff));
+    }
+
+    // 按招式名称排序（完全匹配优先，然后按拼音排序）
+    filtered.sort((a, b) => {
+      const nameA = a.move_name || '';
+      const nameB = b.move_name || '';
+      const searchTerm = filters.move_name?.toLowerCase() || '';
+      
+      // 如果有搜索条件，优先显示完全匹配的
+      if (searchTerm) {
+        const aExactMatch = nameA.toLowerCase() === searchTerm;
+        const bExactMatch = nameB.toLowerCase() === searchTerm;
+        
+        // 完全匹配的排在前面
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+        
+        // 如果都是完全匹配或都不是完全匹配，按拼音排序
+        return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+      }
+      
+      // 没有搜索条件时，直接按拼音排序
+      return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+    });
+
+    setFilteredMoves(filtered);
+  }, [moves, filters]);
+
+  // 当筛选条件或数据变化时重新筛选
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // 处理筛选条件变化
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      move_name: '',
+      main_type: '',
+      move_diff: ''
+    });
+  };
+
+  // 筛选配置
+  const filterOptions: FilterOption[] = [
+    {
+      key: 'move_name',
+      label: '招式名称',
+      type: 'input',
+      placeholder: '搜索招式名称',
+      style: { width: 200 }
+    },
+    {
+      key: 'main_type',
+      label: '主类型',
+      type: 'select',
+      placeholder: '选择主类型',
+      style: { width: 150 },
+      options: categories.map(category => ({
+        value: category.category_code,
+        label: category.category_name
+      }))
+    },
+    {
+      key: 'move_diff',
+      label: '难度等级',
+      type: 'select',
+      placeholder: '选择难度',
+      style: { width: 150 },
+      options: [
+        { value: '1', label: '⭐ 1星 (入门)' },
+        { value: '2', label: '⭐⭐ 2星 (初级)' },
+        { value: '3', label: '⭐⭐⭐ 3星 (中级)' },
+        { value: '4', label: '⭐⭐⭐⭐ 4星 (高级)' },
+        { value: '5', label: '⭐⭐⭐⭐⭐ 5星 (专家)' }
+      ]
+    }
+  ];
 
   useEffect(() => {
     loadCategories();
@@ -620,6 +735,32 @@ export default function MovesPage() {
       render: (score: number) => <span style={{ fontWeight: 'bold', color: '#1890ff' }}>{score || 0}</span>,
     },
     {
+      title: '招式描述',
+      dataIndex: 'move_desc',
+      key: 'move_desc',
+      width: 200,
+      render: (desc: string) => {
+        if (!desc) {
+          return <span style={{ color: '#999' }}>无描述</span>;
+        }
+        return (
+          <Tooltip title={desc} placement="topLeft">
+            <div
+              style={{
+                width: '180px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              {desc}
+            </div>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: '创建者',
       dataIndex: 'move_creater',
       key: 'move_creater',
@@ -678,9 +819,19 @@ export default function MovesPage() {
           </Space>
         }
       >
+        {/* 筛选组件 */}
+        <FilterPanel
+          title="筛选条件"
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={handleFilterChange}
+          onReset={resetFilters}
+          resultCount={filteredMoves.length}
+        />
+
         <Table
           columns={columns}
-          dataSource={moves}
+          dataSource={filteredMoves}
           rowKey="id"
           loading={loading}
           pagination={{

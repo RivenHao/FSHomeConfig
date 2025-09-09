@@ -1,18 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Input, Button, Space, Tag, Avatar, Typography, Row, Col, message } from 'antd';
-import { ReloadOutlined, EyeOutlined, EditOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Table, Button, Space, Tag, Avatar, Typography, message } from 'antd';
+import { EyeOutlined, EditOutlined } from '@ant-design/icons';
 import { getUsersList } from '@/lib/admin-queries';
 import { UserProfile } from '@/types/admin';
+import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 
 const { Title } = Typography;
-const { Search } = Input;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
+  const [filters, setFilters] = useState({
+    search: '',
+    experience: '',
+    age_range: '',
+    location: ''
+  });
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -25,7 +31,7 @@ export default function UsersPage() {
       const result = await getUsersList({
         page,
         pageSize,
-        search: searchValue
+        search: filters.search
       });
       
       if (result.error) {
@@ -34,6 +40,7 @@ export default function UsersPage() {
       }
       
       setUsers(result.data || []);
+      setFilteredUsers(result.data || []);
       setPagination(prev => ({
         ...prev,
         current: page,
@@ -47,23 +54,108 @@ export default function UsersPage() {
     }
   };
 
+  // 筛选函数
+  const applyFilters = useCallback(() => {
+    let filtered = [...users];
+
+    // 按搜索条件筛选
+    if (filters.search) {
+      filtered = filtered.filter(user => 
+        user.nickname?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        user.email?.toLowerCase().includes(filters.search.toLowerCase())
+      );
+    }
+
+    // 按经验筛选
+    if (filters.experience) {
+      const experience = parseInt(filters.experience);
+      filtered = filtered.filter(user => user.experience_years === experience);
+    }
+
+    // 按年龄范围筛选
+    if (filters.age_range) {
+      const [min, max] = filters.age_range.split('-').map(Number);
+      filtered = filtered.filter(user => {
+        const age = user.age;
+        if (!age) return false;
+        return age >= min && age <= max;
+      });
+    }
+
+    // 按地区筛选
+    if (filters.location) {
+      filtered = filtered.filter(user => 
+        user.location?.toLowerCase().includes(filters.location.toLowerCase())
+      );
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, filters]);
+
+  // 当筛选条件或数据变化时重新筛选
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
+
+  // 处理筛选条件变化
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // 重置筛选
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      experience: '',
+      age_range: '',
+      location: ''
+    });
+  };
+
   useEffect(() => {
     loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在组件挂载时加载一次
 
-  const handleSearch = (value: string) => {
-    setSearchValue(value);
-    // 延迟搜索，避免频繁请求
-    setTimeout(() => {
-      loadUsers(1);
-    }, 500);
-  };
-
-  const handleReset = () => {
-    setSearchValue('');
-    loadUsers(1);
-  };
+  // 筛选配置
+  const filterOptions: FilterOption[] = [
+    {
+      key: 'search',
+      label: '用户搜索',
+      type: 'input',
+      placeholder: '搜索昵称或邮箱',
+      style: { width: 200 }
+    },
+    {
+      key: 'experience',
+      label: '经验年限',
+      type: 'select',
+      placeholder: '选择经验年限',
+      style: { width: 150 },
+      options: [
+        { value: '1', label: '1年' },
+        { value: '2', label: '2年' },
+        { value: '3', label: '3年' },
+        { value: '4', label: '4年' },
+        { value: '5', label: '5年' },
+        { value: '6', label: '6年' },
+        { value: '7', label: '7年' },
+        { value: '8', label: '8年' },
+        { value: '9', label: '9年' },
+        { value: '10', label: '10年以上' }
+      ]
+    },
+    {
+      key: 'location',
+      label: '地区筛选',
+      type: 'input',
+      placeholder: '搜索地区',
+      style: { width: 150 }
+    }
+  ];
 
   const handleTableChange = (paginationInfo: { current?: number; pageSize?: number }) => {
     const { current, pageSize } = paginationInfo;
@@ -170,36 +262,23 @@ export default function UsersPage() {
     <div>
       <Title level={2}>用户管理</Title>
       
-      {/* 搜索区域 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={12} md={8}>
-            <Search
-              placeholder="搜索昵称或邮箱"
-              allowClear
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onSearch={handleSearch}
-              style={{ width: '100%' }}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Button 
-              icon={<ReloadOutlined />} 
-              onClick={handleReset}
-              style={{ width: '100%' }}
-            >
-              重置
-            </Button>
-          </Col>
-        </Row>
-      </Card>
+      {/* 筛选组件 */}
+      <FilterPanel
+        title="筛选条件"
+        filters={filters}
+        filterOptions={filterOptions}
+        onFilterChange={handleFilterChange}
+        onReset={resetFilters}
+        showRefreshButton={true}
+        onRefresh={() => loadUsers()}
+        resultCount={filteredUsers.length}
+      />
 
       {/* 用户列表 */}
       <Card>
         <Table
           columns={columns}
-          dataSource={users}
+          dataSource={filteredUsers}
           rowKey="id"
           loading={loading}
           pagination={{
