@@ -938,7 +938,11 @@ export default function MovesPage() {
             label="招式分数"
             rules={[{ required: true, message: '请输入招式分数' }]}
           >
-            <Input type="number" placeholder="请输入招式分数" />
+            <Input
+              type="number"
+              placeholder="请输入招式分数"
+              onWheel={(e) => e.currentTarget.blur()}
+            />
           </Form.Item>
 
           <Form.Item
