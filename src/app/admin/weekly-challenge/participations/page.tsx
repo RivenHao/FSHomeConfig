@@ -42,10 +42,12 @@ export default function ParticipationsPage() {
     setLoading(true);
     try {
       const filterParams = {
-        status: filters.status || undefined,
+        status: (filters.status || undefined) as 'pending' | 'approved' | 'rejected' | undefined,
         challenge_id: filters.challenge_id || undefined,
         date_range: filters.date_range || undefined,
       };
+
+      console.log('🔍 查询参与记录:', filterParams);
 
       const result = await getParticipations(page, pageSize, filterParams);
       if (result.error) {
@@ -54,6 +56,7 @@ export default function ParticipationsPage() {
       }
       
       if (result.data) {
+        console.log('📊 获取到参与记录:', result.data.data.length, '条');
         setParticipations(result.data.data);
         setPagination({
           current: result.data.page,
@@ -215,17 +218,16 @@ export default function ParticipationsPage() {
       render: (record: UserParticipation) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
-            {record.challenge?.title}
+            {record.weekly_challenges?.title}
           </div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            第{record.challenge?.week_number}周
+            第{record.weekly_challenges?.week_number}周
           </div>
           <Tag 
-            color={getModeTypeColor(record.mode?.mode_type || '')} 
-            size="small"
-            style={{ marginTop: 4 }}
+            color={getModeTypeColor(record.challenge_modes?.mode_type || '')} 
+            style={{ marginTop: 4, fontSize: '12px' }}
           >
-            {getModeTypeText(record.mode?.mode_type || '')}
+            {getModeTypeText(record.challenge_modes?.mode_type || '')}
           </Tag>
         </div>
       ),
@@ -465,15 +467,14 @@ export default function ParticipationsPage() {
 
                 <div style={{ flex: 1 }}>
                   <h4>挑战信息</h4>
-                  <div>{selectedParticipation.challenge?.title}</div>
+                  <div>{selectedParticipation.weekly_challenges?.title}</div>
                   <div style={{ fontSize: '12px', color: '#666' }}>
-                    第{selectedParticipation.challenge?.week_number}周 | 
+                    第{selectedParticipation.weekly_challenges?.week_number}周 | 
                     <Tag 
-                      color={getModeTypeColor(selectedParticipation.mode?.mode_type || '')} 
-                      size="small"
-                      style={{ marginLeft: 4 }}
+                      color={getModeTypeColor(selectedParticipation.challenge_modes?.mode_type || '')} 
+                      style={{ marginLeft: 4, fontSize: '12px' }}
                     >
-                      {getModeTypeText(selectedParticipation.mode?.mode_type || '')}
+                      {getModeTypeText(selectedParticipation.challenge_modes?.mode_type || '')}
                     </Tag>
                   </div>
                 </div>

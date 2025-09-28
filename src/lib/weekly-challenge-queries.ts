@@ -1,6 +1,6 @@
 // 每周挑战赛相关的数据查询函数
 
-import { supabase } from './supabase';
+import { supabase, TABLES } from './supabase';
 import {
   Season,
   WeeklyChallenge,
@@ -394,13 +394,13 @@ export async function getParticipations(
   filters: ParticipationFilters = {}
 ): Promise<ApiResponse<PaginatedResponse<UserParticipation>>> {
   try {
+    console.log('🔍 后台查询参与记录:', { page, pageSize, filters });
     let query = supabase
       .from('user_participations')
       .select(`
         *,
-        weekly_challenges(title, week_number),
-        challenge_modes(mode_type, title),
-        user_profiles(nickname, image_url)
+        weekly_challenges!challenge_id(title, week_number),
+        challenge_modes!mode_id(mode_type, title)
       `, { count: 'exact' });
 
     // 应用筛选条件
@@ -429,9 +429,36 @@ export async function getParticipations(
       return { error: error.message };
     }
 
+    // 获取用户信息
+    let enrichedData = data || [];
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map(item => item.user_id))];
+      console.log('👥 需要查询的用户ID:', userIds);
+      
+      const { data: userProfiles, error: profileError } = await supabase
+        .from(TABLES.USER_PROFILES)
+        .select('id, nickname, image_url')
+        .in('id', userIds);
+
+      console.log('👤 查询到的用户资料:', userProfiles);
+      console.log('❌ 用户资料查询错误:', profileError);
+
+      // 将用户信息合并到参与记录中
+      enrichedData = data.map(item => {
+        const userProfile = userProfiles?.find(profile => profile.id === item.user_id);
+        console.log(`🔗 用户 ${item.user_id} 匹配到的资料:`, userProfile);
+        return {
+          ...item,
+          user_profile: userProfile
+        };
+      });
+    }
+
+    console.log('📊 后台查询结果:', { count, dataLength: enrichedData?.length });
+
     return {
       data: {
-        data: data || [],
+        data: enrichedData,
         total: count || 0,
         page,
         pageSize,

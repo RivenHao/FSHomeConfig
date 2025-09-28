@@ -65,8 +65,14 @@ export interface UserParticipation {
   reviewed_at?: string;
   reviewed_by?: string;
   // 关联数据
-  challenge?: WeeklyChallenge;
-  mode?: ChallengeMode;
+  weekly_challenges?: {
+    title: string;
+    week_number: number;
+  };
+  challenge_modes?: {
+    mode_type: 'simple' | 'hard';
+    title: string;
+  };
   user_profile?: {
     nickname: string;
     image_url?: string;
