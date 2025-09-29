@@ -120,7 +120,7 @@ export default function ParticipationsPage() {
     }
   };
 
-  const handleSubmitReview = async (values: any) => {
+  const handleSubmitReview = async (values: { status: 'approved' | 'rejected'; admin_note?: string }) => {
     if (!selectedParticipation) return;
 
     try {
@@ -146,11 +146,11 @@ export default function ParticipationsPage() {
     }
   };
 
-  const handleTableChange = (paginationConfig: any) => {
-    loadParticipations(paginationConfig.current, paginationConfig.pageSize);
+  const handleTableChange = (paginationConfig: { current?: number; pageSize?: number }) => {
+    loadParticipations(paginationConfig.current || 1, paginationConfig.pageSize || 10);
   };
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string | [string, string] | null) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,

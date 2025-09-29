@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber } from 'antd';
+import type { TableProps } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, SettingOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -132,7 +133,7 @@ export default function ChallengesPage() {
     // 结束挑战赛
     const handleEndChallenge = async (challenge: WeeklyChallenge) => {
         try {
-            const result = await updateChallenge(challenge.id, { status: 'completed' });
+            const result = await updateChallenge(challenge.id, { status: 'ended' });
             if (result.error) {
                 message.error('结束挑战赛失败');
                 return;
@@ -188,7 +189,15 @@ export default function ChallengesPage() {
         }
     };
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (values: {
+        season_id: string;
+        title: string;
+        description?: string;
+        week_number: number;
+        date_range: [dayjs.Dayjs, dayjs.Dayjs];
+        official_video_url?: string;
+        status?: string;
+    }) => {
         try {
             const challengeData = {
                 season_id: values.season_id,
@@ -276,7 +285,16 @@ export default function ChallengesPage() {
         }
     };
 
-    const handleModeSubmit = async (values: any) => {
+    const handleModeSubmit = async (values: {
+        challenge_id: string;
+        mode_type: 'simple' | 'hard';
+        title: string;
+        description: string;
+        moves_required: string[] | string;
+        difficulty_level?: number;
+        points_reward: number;
+        demo_video_url?: string;
+    }) => {
         try {
             // 检查是否已存在相同类型的模式（仅在新增时检查）
             if (!editingMode) {
@@ -292,7 +310,9 @@ export default function ChallengesPage() {
                 mode_type: values.mode_type,
                 title: values.title,
                 description: values.description,
-                moves_required: values.moves_required.split(',').map((s: string) => s.trim()).filter((s: string) => s),
+                moves_required: Array.isArray(values.moves_required) 
+                    ? values.moves_required 
+                    : values.moves_required.split(',').map((s: string) => s.trim()).filter((s: string) => s),
                 difficulty_level: values.difficulty_level,
                 points_reward: values.points_reward,
                 demo_video_url: values.demo_video_url,
@@ -347,15 +367,15 @@ export default function ChallengesPage() {
         }
     };
 
-    const handleTableChange = (paginationConfig: any) => {
-        loadChallenges(paginationConfig.current, paginationConfig.pageSize);
+    const handleTableChange: TableProps<WeeklyChallenge>['onChange'] = (paginationConfig) => {
+        loadChallenges(paginationConfig?.current || 1, paginationConfig?.pageSize || 10);
     };
 
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'draft': return 'default';
             case 'active': return 'green';
-            case 'completed': return 'orange';
+            case 'ended': return 'orange';
             default: return 'default';
         }
     };
@@ -364,7 +384,7 @@ export default function ChallengesPage() {
         switch (status) {
             case 'draft': return '草稿';
             case 'active': return '进行中';
-            case 'completed': return '已结束';
+            case 'ended': return '已结束';
             default: return '未知';
         }
     };

@@ -204,7 +204,7 @@ export interface CreateChallengeModeRequest {
   demo_video_url?: string;
 }
 
-export interface UpdateChallengeModeRequest extends Partial<CreateChallengeModeRequest> {}
+export type UpdateChallengeModeRequest = Partial<CreateChallengeModeRequest>;
 
 export interface ReviewParticipationRequest {
   status: 'approved' | 'rejected';

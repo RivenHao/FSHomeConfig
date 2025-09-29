@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, TrophyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
     getSeasons,
@@ -124,7 +124,14 @@ export default function SeasonsPage() {
         }
     };
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (values: {
+        name: string;
+        year: number;
+        quarter: number;
+        date_range: [dayjs.Dayjs, dayjs.Dayjs];
+        prize_description?: string;
+        status?: string;
+    }) => {
         try {
             const seasonData = {
                 name: values.name,
@@ -164,8 +171,8 @@ export default function SeasonsPage() {
         }
     };
 
-    const handleTableChange = (paginationConfig: any) => {
-        loadSeasons(paginationConfig.current, paginationConfig.pageSize);
+    const handleTableChange = (paginationConfig: { current?: number; pageSize?: number }) => {
+        loadSeasons(paginationConfig.current || 1, paginationConfig.pageSize || 10);
     };
 
     const getStatusColor = (status: string) => {

@@ -250,7 +250,7 @@ export default function LeaderboardPage() {
                 获奖者
               </Tag>
               <div style={{ marginTop: 4 }}>
-                <Tag color={getPrizeStatusColor(record.prize_status)} size="small">
+                <Tag color={getPrizeStatusColor(record.prize_status)}>
                   {getPrizeStatusText(record.prize_status)}
                 </Tag>
               </div>
@@ -294,7 +294,7 @@ export default function LeaderboardPage() {
                   <Option key={season.id} value={season.id}>
                     {season.name} 
                     {season.status === 'active' && (
-                      <Tag color="green" size="small" style={{ marginLeft: 4 }}>
+                      <Tag color="green" style={{ marginLeft: 4 }}>
                         进行中
                       </Tag>
                     )}
@@ -309,7 +309,6 @@ export default function LeaderboardPage() {
                   赛季状态: 
                   <Tag 
                     color={selectedSeason.status === 'active' ? 'green' : 'orange'} 
-                    size="small" 
                     style={{ marginLeft: 4 }}
                   >
                     {selectedSeason.status === 'active' ? '进行中' : 

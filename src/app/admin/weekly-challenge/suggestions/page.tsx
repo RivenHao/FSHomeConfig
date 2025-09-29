@@ -30,7 +30,7 @@ export default function SuggestionsPage() {
   const [selectedSuggestion, setSelectedSuggestion] = useState<UserSuggestion | null>(null);
   const [form] = Form.useForm();
   const [filters, setFilters] = useState({
-    status: 'pending',
+    status: 'pending' as 'pending' | 'adopted' | 'rejected' | '',
     season_id: '',
     date_range: null as [string, string] | null,
   });
@@ -45,7 +45,7 @@ export default function SuggestionsPage() {
     setLoading(true);
     try {
       const filterParams = {
-        status: filters.status || undefined,
+        status: filters.status === '' ? undefined : filters.status as 'pending' | 'adopted' | 'rejected',
         season_id: filters.season_id || undefined,
         date_range: filters.date_range || undefined,
       };
@@ -137,7 +137,7 @@ export default function SuggestionsPage() {
     }
   };
 
-  const handleSubmitProcess = async (values: any) => {
+  const handleSubmitProcess = async (values: { status: 'adopted' | 'rejected'; admin_note?: string; adopted_challenge_id?: string }) => {
     if (!selectedSuggestion) return;
 
     try {
@@ -164,11 +164,11 @@ export default function SuggestionsPage() {
     }
   };
 
-  const handleTableChange = (paginationConfig: any) => {
-    loadSuggestions(paginationConfig.current, paginationConfig.pageSize);
+  const handleTableChange = (paginationConfig: { current?: number; pageSize?: number }) => {
+    loadSuggestions(paginationConfig.current || 1, paginationConfig.pageSize || 10);
   };
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = (key: string, value: string | [string, string] | null) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,

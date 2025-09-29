@@ -169,7 +169,7 @@ export async function getChallenges(
       .select(`
         *,
         seasons!inner(name, year, quarter),
-        challenge_modes(count)
+        challenge_modes(id)
       `, { count: 'exact' });
 
     // 应用筛选条件
@@ -196,9 +196,37 @@ export async function getChallenges(
       return { error: error.message };
     }
 
+    // 处理数据，添加模式数量和参与人数
+    let enrichedData = data || [];
+    if (data && data.length > 0) {
+      // 获取每个挑战赛的参与人数
+      const challengeIds = data.map(challenge => challenge.id);
+      const { data: participationCounts } = await supabase
+        .from('user_participations')
+        .select('challenge_id')
+        .in('challenge_id', challengeIds);
+
+      // 计算每个挑战赛的参与人数
+      const participationCountMap = new Map();
+      if (participationCounts) {
+        participationCounts.forEach(participation => {
+          const challengeId = participation.challenge_id;
+          participationCountMap.set(challengeId, (participationCountMap.get(challengeId) || 0) + 1);
+        });
+      }
+
+      // 丰富数据
+      enrichedData = data.map(challenge => ({
+        ...challenge,
+        season: challenge.seasons,
+        modes: challenge.challenge_modes || [],
+        participant_count: participationCountMap.get(challenge.id) || 0,
+      }));
+    }
+
     return {
       data: {
-        data: data || [],
+        data: enrichedData,
         total: count || 0,
         page,
         pageSize,
@@ -637,7 +665,7 @@ export async function getSeasonStats(): Promise<ApiResponse<SeasonStats>> {
       total_points_awarded: totalPointsResult.data?.sum || 0,
       top_users: (topUsers || []).map(user => ({
         user_id: user.user_id,
-        nickname: (user.user_profiles as any)?.nickname || '未知用户',
+        nickname: (user.user_profiles as { nickname?: string })?.nickname || '未知用户',
         total_points: user.total_points,
         rank_position: user.rank_position,
       })),
