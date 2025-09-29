@@ -1,5 +1,5 @@
 import { supabase, TABLES } from './supabase';
-import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory, MoveCategoryWithSub, CommunityVideo } from '@/types/admin';
+import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory } from '@/types/admin';
 import { getCurrentAdmin } from './admin-auth';
 
 // 获取用户列表
@@ -452,6 +452,10 @@ export async function createMoveCategory(categoryData: Partial<MoveCategory>) {
       .select()
       .single();
 
+    if (error) {
+      return { data: null, error: error as Error };
+    }
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
@@ -468,6 +472,10 @@ export async function updateMoveCategory(id: number, categoryData: Partial<MoveC
       .select()
       .single();
 
+    if (error) {
+      return { data: null, error: error as Error };
+    }
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
@@ -481,6 +489,10 @@ export async function deleteMoveCategory(id: number) {
       .from('move_categories')
       .delete()
       .eq('id', id);
+
+    if (error) {
+      return { data: null, error: error as Error };
+    }
 
     return { data: { success: true }, error: null };
   } catch (error) {
@@ -522,6 +534,10 @@ export async function createMoveSubCategory(subCategoryData: Partial<MoveSubCate
       .select()
       .single();
 
+    if (error) {
+      return { data: null, error: error as Error };
+    }
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
@@ -538,6 +554,10 @@ export async function updateMoveSubCategory(id: number, subCategoryData: Partial
       .select()
       .single();
 
+    if (error) {
+      return { data: null, error: error as Error };
+    }
+
     return { data, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
@@ -552,7 +572,11 @@ export async function deleteMoveSubCategory(id: number) {
       .delete()
       .eq('id', id);
 
-    return { data: null, error: null };
+    if (error) {
+      return { data: null, error: error as Error };
+    }
+
+    return { data: { success: true }, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
   }
@@ -566,6 +590,10 @@ export async function getAllMoveCategories() {
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
+
+    if (error) {
+      return { data: null, error: error as Error };
+    }
 
     return { data, error: null };
   } catch (error) {
@@ -656,6 +684,7 @@ export async function reviewCommunityVideo(id: string, status: 'approved' | 'rej
       .from(TABLES.COMMUNITY_VIDEOS)
       .update({
         status,
+        admin_note: adminNote,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);

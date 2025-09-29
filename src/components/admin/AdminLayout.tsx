@@ -106,6 +106,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: <BookOutlined />,
       label: '心得审核',
     },
+    {
+      key: 'weekly-challenge',
+      icon: <BellOutlined />,
+      label: '每周挑战赛',
+      children: [
+        {
+          key: '/admin/weekly-challenge/seasons',
+          label: '赛季管理',
+        },
+        {
+          key: '/admin/weekly-challenge/challenges',
+          label: '挑战赛管理',
+        },
+        {
+          key: '/admin/weekly-challenge/participations',
+          label: '参与审核',
+        },
+        {
+          key: '/admin/weekly-challenge/suggestions',
+          label: '用户建议',
+        },
+        {
+          key: '/admin/weekly-challenge/leaderboard',
+          label: '排行榜管理',
+        },
+      ],
+    },
     ...(admin && hasSuperAdminAccess(admin) ? [{
       key: '/admin/settings',
       icon: <SettingOutlined />,

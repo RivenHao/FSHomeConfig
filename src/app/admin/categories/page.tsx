@@ -3,16 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Switch, InputNumber } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
-import { 
-  getMoveCategories, 
-  createMoveCategory, 
-  updateMoveCategory, 
+import {
+  getMoveCategories,
+  createMoveCategory,
+  updateMoveCategory,
   deleteMoveCategory,
   getMoveSubCategories,
   createMoveSubCategory,
   updateMoveSubCategory,
-  deleteMoveSubCategory,
-  getAllMoveCategories
+  deleteMoveSubCategory
 } from '@/lib/admin-queries';
 import { MoveCategory, MoveSubCategory } from '@/types/admin';
 
