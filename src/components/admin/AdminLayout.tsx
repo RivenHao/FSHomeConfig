@@ -107,8 +107,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       label: '心得审核',
     },
     {
-      key: 'weekly-challenge',
+      key: '/admin/notifications',
       icon: <BellOutlined />,
+      label: '系统通知推送',
+    },
+    {
+      key: 'weekly-challenge',
+      icon: <FireOutlined />,
       label: '每周挑战赛',
       children: [
         {
