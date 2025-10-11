@@ -29,8 +29,7 @@ import {
     SendOutlined,
     HistoryOutlined,
     SearchOutlined,
-    CheckCircleOutlined,
-    ExclamationCircleOutlined
+    CheckCircleOutlined
 } from '@ant-design/icons'
 import { supabase } from '@/lib/supabase'
 
@@ -234,7 +233,7 @@ export default function NotificationsPage() {
 
                 if (directError) throw directError
 
-                const historyData: NotificationHistory[] = directData?.map((item: any) => ({
+                const historyData: NotificationHistory[] = directData?.map((item: Record<string, any>) => ({
                     id: item.id,
                     title: item.title,
                     message: item.message,
@@ -249,7 +248,7 @@ export default function NotificationsPage() {
                 return
             }
 
-            const historyData: NotificationHistory[] = data?.map((item: any) => ({
+            const historyData: NotificationHistory[] = data?.map((item: Record<string, any>) => ({
                 id: item.id,
                 title: item.title,
                 message: item.message,
@@ -277,7 +276,7 @@ export default function NotificationsPage() {
     }, [activeTab])
 
     // 获取用户信息
-    const getUsersByIds = async (userIds: string[]) => {
+    const getUsersByIds = async (userIds: string[]): Promise<Array<{id: string, nickname?: string, email?: string}>> => {
         if (!userIds || userIds.length === 0) return []
         
         try {
@@ -337,7 +336,7 @@ export default function NotificationsPage() {
 
     // 目标用户列表组件
     const TargetUsersList = ({ userIds }: { userIds: string[] }) => {
-        const [targetUsers, setTargetUsers] = useState<any[]>([])
+        const [targetUsers, setTargetUsers] = useState<Array<{id: string, nickname?: string, email?: string}>>([])
         const [loading, setLoading] = useState(false)
         const [expanded, setExpanded] = useState(false)
 
@@ -389,51 +388,10 @@ export default function NotificationsPage() {
         )
     }
 
-    // 显示发送确认弹窗
-    const showSendConfirm = (values: any) => {
-        let targetDescription = ''
-        let targetCount = 0
 
-        if (formData.targetType === 'all') {
-            targetDescription = '所有用户'
-            targetCount = users.length
-        } else if (formData.targetType === 'active') {
-            targetDescription = '活跃用户（最近30天有活动）'
-            targetCount = 0 // 实际数量需要查询
-        } else {
-            targetDescription = '指定用户'
-            targetCount = formData.selectedUsers.length
-            if (targetCount === 0) {
-                message.warning('请选择要发送的用户')
-                return
-            }
-        }
-
-        Modal.confirm({
-            title: '确认发送通知',
-            icon: <ExclamationCircleOutlined />,
-            content: (
-                <div>
-                    <p><strong>通知标题：</strong>{values.title}</p>
-                    <p><strong>通知内容：</strong>{values.message}</p>
-                    <p><strong>发送目标：</strong>{targetDescription}</p>
-                    {formData.targetType !== 'active' && (
-                        <p><strong>预计接收人数：</strong>{targetCount} 人</p>
-                    )}
-                    <p style={{ color: '#ff4d4f', marginTop: 16 }}>
-                        ⚠️ 通知发送后无法撤回，请确认信息无误后再发送
-                    </p>
-                </div>
-            ),
-            okText: '确认发送',
-            cancelText: '取消',
-            okType: 'primary',
-            onOk: () => sendNotification(values),
-        })
-    }
 
     // 发送通知
-    const sendNotification = async (values: any) => {
+    const sendNotification = async (values: { title: string; message: string }) => {
         setSending(true)
         try {
             const notificationData = {
