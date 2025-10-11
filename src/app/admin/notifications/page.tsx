@@ -20,8 +20,7 @@ import {
     Row,
     Col,
     Collapse,
-    message,
-    Modal
+    message
 } from 'antd'
 import {
     BellOutlined,
@@ -59,6 +58,18 @@ interface NotificationHistory {
     target_count: number
     sent_at: string
     sent_by: string
+    target_user_ids?: string[]
+}
+
+interface DatabaseNotificationHistory {
+    id: string
+    title: string
+    message: string
+    target_type: string
+    target_count: number
+    sent_at: string
+    sent_by?: string
+    sent_by_email?: string
     target_user_ids?: string[]
 }
 
@@ -214,7 +225,7 @@ export default function NotificationsPage() {
 
             if (error) {
                 console.warn('RPC 函数调用失败，尝试直接查询表:', error)
-                
+
                 // 如果 RPC 函数失败，直接查询表
                 const { data: directData, error: directError } = await supabase
                     .from('notification_history')
@@ -233,7 +244,7 @@ export default function NotificationsPage() {
 
                 if (directError) throw directError
 
-                const historyData: NotificationHistory[] = directData?.map((item: Record<string, any>) => ({
+                const historyData: NotificationHistory[] = directData?.map((item: DatabaseNotificationHistory) => ({
                     id: item.id,
                     title: item.title,
                     message: item.message,
@@ -248,7 +259,7 @@ export default function NotificationsPage() {
                 return
             }
 
-            const historyData: NotificationHistory[] = data?.map((item: Record<string, any>) => ({
+            const historyData: NotificationHistory[] = data?.map((item: DatabaseNotificationHistory) => ({
                 id: item.id,
                 title: item.title,
                 message: item.message,
@@ -276,15 +287,15 @@ export default function NotificationsPage() {
     }, [activeTab])
 
     // 获取用户信息
-    const getUsersByIds = async (userIds: string[]): Promise<Array<{id: string, nickname?: string, email?: string}>> => {
+    const getUsersByIds = async (userIds: string[]): Promise<Array<{ id: string, nickname?: string, email?: string }>> => {
         if (!userIds || userIds.length === 0) return []
-        
+
         try {
             const { data, error } = await supabase
                 .from('user_profiles')
                 .select('id, nickname, email')
                 .in('id', userIds)
-            
+
             if (error) throw error
             return data || []
         } catch (error) {
@@ -301,7 +312,7 @@ export default function NotificationsPage() {
                 .from('notification_history')
                 .select('id')
                 .limit(1)
-            
+
             if (error) {
                 console.warn('notification_history 表可能不存在:', error)
                 message.warning('通知历史功能需要数据库初始化，请联系管理员')
@@ -336,7 +347,7 @@ export default function NotificationsPage() {
 
     // 目标用户列表组件
     const TargetUsersList = ({ userIds }: { userIds: string[] }) => {
-        const [targetUsers, setTargetUsers] = useState<Array<{id: string, nickname?: string, email?: string}>>([])
+        const [targetUsers, setTargetUsers] = useState<Array<{ id: string, nickname?: string, email?: string }>>([])
         const [loading, setLoading] = useState(false)
         const [expanded, setExpanded] = useState(false)
 
@@ -365,9 +376,9 @@ export default function NotificationsPage() {
                     </Tag>
                 ))}
                 {hasMore && !expanded && (
-                    <Button 
-                        type="link" 
-                        size="small" 
+                    <Button
+                        type="link"
+                        size="small"
                         onClick={() => setExpanded(true)}
                         style={{ padding: 0, height: 'auto', fontSize: '11px' }}
                     >
@@ -375,9 +386,9 @@ export default function NotificationsPage() {
                     </Button>
                 )}
                 {expanded && hasMore && (
-                    <Button 
-                        type="link" 
-                        size="small" 
+                    <Button
+                        type="link"
+                        size="small"
                         onClick={() => setExpanded(false)}
                         style={{ padding: 0, height: 'auto', fontSize: '11px' }}
                     >
@@ -408,7 +419,7 @@ export default function NotificationsPage() {
                 const { data: allUsers, error: usersError } = await supabase
                     .from('user_profiles')
                     .select('id')
-                
+
                 if (usersError) throw usersError
                 targetUserIds = allUsers?.map(u => u.id) || []
                 result = `已发送给所有用户 (${targetUserIds.length} 个)`
@@ -417,7 +428,7 @@ export default function NotificationsPage() {
                 const { data: activeUsers, error: activeError } = await supabase
                     .from('user_profiles')
                     .select('id')
-                
+
                 if (activeError) throw activeError
                 targetUserIds = activeUsers?.map(u => u.id) || []
                 result = `已发送给活跃用户 (${targetUserIds.length} 个)`
@@ -498,10 +509,10 @@ export default function NotificationsPage() {
             selectedUsers: []
         })
         setUserSearchTerm('')
-        
+
         // 然后重置表单字段
         form.resetFields()
-        
+
         // 强制设置表单值为空
         form.setFieldsValue({
             title: '',
