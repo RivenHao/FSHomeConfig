@@ -158,3 +158,18 @@ export interface CommunityVideo {
   // 关联数据
   user_profiles?: { nickname: string | null; email: string | null };
 }
+
+// 成就类型
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon_url: string | null;
+  difficulty: number; // 1-5
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  // 关联数据
+  move_ids?: number[]; // 关联的招式ID列表
+  moves_count?: number; // 关联的招式数量
+}

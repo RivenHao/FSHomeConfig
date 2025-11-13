@@ -701,3 +701,180 @@ export async function reviewCommunityVideo(id: string, status: 'approved' | 'rej
     return { data: null, error: error as Error };
   }
 }
+
+// ==================== 成就管理 ====================
+
+// 获取所有成就
+export async function getAchievements() {
+  try {
+    const { data: achievements, error } = await supabase
+      .from('achievements')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('获取成就列表失败:', error);
+      return { data: null, error };
+    }
+
+    // 为每个成就获取关联的招式数量和ID列表
+    const achievementsWithDetails = await Promise.all(
+      (achievements || []).map(async (achievement) => {
+        const { data: achievementMoves, count } = await supabase
+          .from('achievement_moves')
+          .select('move_id', { count: 'exact' })
+          .eq('achievement_id', achievement.id);
+
+        return {
+          ...achievement,
+          moves_count: count || 0,
+          move_ids: (achievementMoves || []).map(am => am.move_id)
+        };
+      })
+    );
+
+    return { data: achievementsWithDetails, error: null };
+  } catch (error) {
+    console.error('获取成就列表异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 创建成就
+export async function createAchievement(achievement: {
+  name: string;
+  description: string;
+  difficulty: number;
+  is_active: boolean;
+  icon_url?: string;
+  move_ids: number[];
+}) {
+  try {
+    // 1. 创建成就
+    const { data: newAchievement, error: createError } = await supabase
+      .from('achievements')
+      .insert({
+        name: achievement.name,
+        description: achievement.description,
+        difficulty: achievement.difficulty,
+        is_active: achievement.is_active,
+        icon_url: achievement.icon_url || null
+      })
+      .select()
+      .single();
+
+    if (createError || !newAchievement) {
+      console.error('创建成就失败:', createError);
+      return { data: null, error: createError };
+    }
+
+    // 2. 关联招式
+    if (achievement.move_ids && achievement.move_ids.length > 0) {
+      const achievementMoves = achievement.move_ids.map(moveId => ({
+        achievement_id: newAchievement.id,
+        move_id: moveId
+      }));
+
+      const { error: movesError } = await supabase
+        .from('achievement_moves')
+        .insert(achievementMoves);
+
+      if (movesError) {
+        console.error('关联招式失败:', movesError);
+        // 如果关联失败，删除已创建的成就
+        await supabase.from('achievements').delete().eq('id', newAchievement.id);
+        return { data: null, error: movesError };
+      }
+    }
+
+    return { data: newAchievement, error: null };
+  } catch (error) {
+    console.error('创建成就异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 更新成就
+export async function updateAchievement(id: string, achievement: {
+  name: string;
+  description: string;
+  difficulty: number;
+  is_active: boolean;
+  icon_url?: string;
+  move_ids: number[];
+}) {
+  try {
+    // 1. 更新成就基本信息
+    const { data: updatedAchievement, error: updateError } = await supabase
+      .from('achievements')
+      .update({
+        name: achievement.name,
+        description: achievement.description,
+        difficulty: achievement.difficulty,
+        is_active: achievement.is_active,
+        icon_url: achievement.icon_url || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('更新成就失败:', updateError);
+      return { data: null, error: updateError };
+    }
+
+    // 2. 更新关联招式：先删除旧的，再插入新的
+    const { error: deleteError } = await supabase
+      .from('achievement_moves')
+      .delete()
+      .eq('achievement_id', id);
+
+    if (deleteError) {
+      console.error('删除旧的招式关联失败:', deleteError);
+      return { data: null, error: deleteError };
+    }
+
+    if (achievement.move_ids && achievement.move_ids.length > 0) {
+      const achievementMoves = achievement.move_ids.map(moveId => ({
+        achievement_id: id,
+        move_id: moveId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('achievement_moves')
+        .insert(achievementMoves);
+
+      if (insertError) {
+        console.error('插入新的招式关联失败:', insertError);
+        return { data: null, error: insertError };
+      }
+    }
+
+    return { data: updatedAchievement, error: null };
+  } catch (error) {
+    console.error('更新成就异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除成就
+export async function deleteAchievement(id: string) {
+  try {
+    // Supabase 会通过 CASCADE 自动删除关联的 achievement_moves 和 user_achievements
+    const { error } = await supabase
+      .from('achievements')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('删除成就失败:', error);
+      return { data: null, error };
+    }
+
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    console.error('删除成就异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
