@@ -15,6 +15,7 @@ import {
   BellOutlined,
   FireOutlined,
   TagsOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentAdmin, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
@@ -90,6 +91,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       key: '/admin/categories',
       icon: <TagsOutlined />,
       label: '招式分类管理',
+    },
+    {
+      key: '/admin/achievements',
+      icon: <TrophyOutlined />,
+      label: '成就系统管理',
     },
     {
       key: '/admin/videos',
