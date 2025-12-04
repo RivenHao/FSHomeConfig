@@ -878,3 +878,62 @@ export async function deleteAchievement(id: string) {
     return { data: null, error: error as Error };
   }
 }
+
+// ========================================
+// 标签库管理函数
+// ========================================
+
+// 获取所有标签
+export async function getTags() {
+  try {
+    const { data, error } = await supabase
+      .from('move_tags')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 创建标签
+export async function createTag(tagName: string) {
+  try {
+    const { data, error } = await supabase
+      .from('move_tags')
+      .insert([{ tag_name: tagName }])
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除标签
+export async function deleteTag(id: number) {
+  try {
+    const { error } = await supabase
+      .from('move_tags')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    return { data: null, error: error as Error };
+  }
+}

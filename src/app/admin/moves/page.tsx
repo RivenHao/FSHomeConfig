@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
-import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories } from '@/lib/admin-queries';
-import { Move, MoveCategory } from '@/types/admin';
+import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories, getTags } from '@/lib/admin-queries';
+import { Move, MoveCategory, MoveTag } from '@/types/admin';
 import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 
 const { Option } = Select;
@@ -18,6 +18,7 @@ export default function MovesPage() {
   const [form] = Form.useForm();
   const [subTypeOptions, setSubTypeOptions] = useState<{ value: string; label: string }[]>([]);
   const [categories, setCategories] = useState<MoveCategory[]>([]);
+  const [allTags, setAllTags] = useState<MoveTag[]>([]);
   const [previewVideo, setPreviewVideo] = useState<string>('');
   const [previewGif, setPreviewGif] = useState<string>('');
 
@@ -490,9 +491,18 @@ export default function MovesPage() {
     }
   ];
 
+  // 加载所有标签
+  const loadAllTags = async () => {
+    const result = await getTags();
+    if (result.data) {
+      setAllTags(result.data);
+    }
+  };
+
   useEffect(() => {
     loadCategories();
     loadMoves();
+    loadAllTags();
   }, []);
 
   const handleAdd = () => {
@@ -534,9 +544,10 @@ export default function MovesPage() {
       move_url: move.move_url,
       move_gif: move.move_gif,
       move_creater: move.move_creater,
-      move_score: move.move_score
+      move_score: move.move_score,
+      tags: move.tags || []
     });
-
+    
     setModalVisible(true);
   };
 
@@ -567,6 +578,7 @@ export default function MovesPage() {
     move_gif?: string;
     move_creater?: string;
     move_score: number;
+    tags?: string[];
   }) => {
     try {
       // 如果选择了新的GIF文件，先上传
@@ -773,6 +785,20 @@ export default function MovesPage() {
       },
     },
     {
+      title: '标签',
+      dataIndex: 'tags',
+      key: 'tags',
+      render: (tags: string[] | null) => (
+        <>
+          {tags?.map(tag => (
+            <Tag color="blue" key={tag}>
+              {tag}
+            </Tag>
+          ))}
+        </>
+      ),
+    },
+    {
       title: '创建者',
       dataIndex: 'move_creater',
       key: 'move_creater',
@@ -950,6 +976,19 @@ export default function MovesPage() {
             label="创建者"
           >
             <Input placeholder="请输入创建者" />
+          </Form.Item>
+
+          <Form.Item
+            name="tags"
+            label="标签"
+            tooltip="可选字段，可多选"
+          >
+            <Select
+              mode="multiple"
+              placeholder="请选择标签"
+              style={{ width: '100%' }}
+              options={allTags.map(tag => ({ label: tag.tag_name, value: tag.tag_name }))}
+            />
           </Form.Item>
 
           <Form.Item
