@@ -38,6 +38,14 @@ export interface Move {
   move_creater: string | null;
   move_score: number | null;
   move_cn: string | null;
+  tags: string[] | null;
+}
+
+// 招式标签类型
+export interface MoveTag {
+  id: number;
+  tag_name: string;
+  created_at: string;
 }
 
 // 用户招式提交类型
