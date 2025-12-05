@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, EyeOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { getMoves, createMove, updateMove, deleteMove, getAllMoveCategories, getMoveSubCategories, getTags } from '@/lib/admin-queries';
 import { Move, MoveCategory, MoveTag } from '@/types/admin';
@@ -545,7 +545,8 @@ export default function MovesPage() {
       move_gif: move.move_gif,
       move_creater: move.move_creater,
       move_score: move.move_score,
-      tags: move.tags || []
+      tags: move.tags || [],
+      is_teaching: move.is_teaching ?? false
     });
     
     setModalVisible(true);
@@ -579,6 +580,7 @@ export default function MovesPage() {
     move_creater?: string;
     move_score: number;
     tags?: string[];
+    is_teaching: boolean;
   }) => {
     try {
       // 如果选择了新的GIF文件，先上传
@@ -799,6 +801,17 @@ export default function MovesPage() {
       ),
     },
     {
+      title: '是否教学',
+      dataIndex: 'is_teaching',
+      key: 'is_teaching',
+      width: 100,
+      render: (isTeaching: boolean) => (
+        <Tag color={isTeaching ? 'green' : 'default'}>
+          {isTeaching ? '是' : '否'}
+        </Tag>
+      ),
+    },
+    {
       title: '创建者',
       dataIndex: 'move_creater',
       key: 'move_creater',
@@ -989,6 +1002,16 @@ export default function MovesPage() {
               style={{ width: '100%' }}
               options={allTags.map(tag => ({ label: tag.tag_name, value: tag.tag_name }))}
             />
+          </Form.Item>
+
+          <Form.Item
+            name="is_teaching"
+            label="是否教学"
+            valuePropName="checked"
+            initialValue={false}
+            tooltip="开启后表示该招式为教学内容"
+          >
+            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
 
           <Form.Item

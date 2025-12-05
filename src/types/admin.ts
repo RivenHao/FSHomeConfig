@@ -39,6 +39,7 @@ export interface Move {
   move_score: number | null;
   move_cn: string | null;
   tags: string[] | null;
+  is_teaching: boolean;
 }
 
 // 招式标签类型
