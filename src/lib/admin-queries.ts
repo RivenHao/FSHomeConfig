@@ -702,14 +702,99 @@ export async function reviewCommunityVideo(id: string, status: 'approved' | 'rej
   }
 }
 
+// ==================== 成就分类管理 ====================
+
+// 获取所有成就分类
+export async function getAchievementCategories() {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.ACHIEVEMENT_CATEGORIES)
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('获取成就分类列表失败:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('获取成就分类列表异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 创建成就分类
+export async function createAchievementCategory(name: string) {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.ACHIEVEMENT_CATEGORIES)
+      .insert([{ name }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('创建成就分类失败:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('创建成就分类异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 更新成就分类
+export async function updateAchievementCategory(id: number, name: string) {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.ACHIEVEMENT_CATEGORIES)
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('更新成就分类失败:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('更新成就分类异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
+// 删除成就分类
+export async function deleteAchievementCategory(id: number) {
+  try {
+    const { error } = await supabase
+      .from(TABLES.ACHIEVEMENT_CATEGORIES)
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('删除成就分类失败:', error);
+      return { data: null, error };
+    }
+
+    return { data: { success: true }, error: null };
+  } catch (error) {
+    console.error('删除成就分类异常:', error);
+    return { data: null, error: error as Error };
+  }
+}
+
 // ==================== 成就管理 ====================
 
 // 获取所有成就
 export async function getAchievements() {
   try {
     const { data: achievements, error } = await supabase
-      .from('achievements')
-      .select('*')
+      .from(TABLES.ACHIEVEMENTS)
+      .select('*, achievement_categories(name)') // 关联查询分类名称
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -727,6 +812,7 @@ export async function getAchievements() {
 
         return {
           ...achievement,
+          category: achievement.achievement_categories ? { name: achievement.achievement_categories.name } : null,
           moves_count: count || 0,
           move_ids: (achievementMoves || []).map(am => am.move_id)
         };
@@ -748,17 +834,19 @@ export async function createAchievement(achievement: {
   is_active: boolean;
   icon_url?: string;
   move_ids: number[];
+  category_id?: number;
 }) {
   try {
     // 1. 创建成就
     const { data: newAchievement, error: createError } = await supabase
-      .from('achievements')
+      .from(TABLES.ACHIEVEMENTS)
       .insert({
         name: achievement.name,
         description: achievement.description,
         difficulty: achievement.difficulty,
         is_active: achievement.is_active,
-        icon_url: achievement.icon_url || null
+        icon_url: achievement.icon_url || null,
+        category_id: achievement.category_id || null
       })
       .select()
       .single();
@@ -782,7 +870,7 @@ export async function createAchievement(achievement: {
       if (movesError) {
         console.error('关联招式失败:', movesError);
         // 如果关联失败，删除已创建的成就
-        await supabase.from('achievements').delete().eq('id', newAchievement.id);
+        await supabase.from(TABLES.ACHIEVEMENTS).delete().eq('id', newAchievement.id);
         return { data: null, error: movesError };
       }
     }
@@ -802,17 +890,19 @@ export async function updateAchievement(id: string, achievement: {
   is_active: boolean;
   icon_url?: string;
   move_ids: number[];
+  category_id?: number;
 }) {
   try {
     // 1. 更新成就基本信息
     const { data: updatedAchievement, error: updateError } = await supabase
-      .from('achievements')
+      .from(TABLES.ACHIEVEMENTS)
       .update({
         name: achievement.name,
         description: achievement.description,
         difficulty: achievement.difficulty,
         is_active: achievement.is_active,
         icon_url: achievement.icon_url || null,
+        category_id: achievement.category_id || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -863,7 +953,7 @@ export async function deleteAchievement(id: string) {
   try {
     // Supabase 会通过 CASCADE 自动删除关联的 achievement_moves 和 user_achievements
     const { error } = await supabase
-      .from('achievements')
+      .from(TABLES.ACHIEVEMENTS)
       .delete()
       .eq('id', id);
 

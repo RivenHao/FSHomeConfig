@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, EyeOutlined, CloseOutlined, InboxOutlined, TrophyOutlined } from '@ant-design/icons';
-import { getAchievements, createAchievement, updateAchievement, deleteAchievement, getMoves } from '@/lib/admin-queries';
-import { Achievement, Move } from '@/types/admin';
+import { getAchievements, createAchievement, updateAchievement, deleteAchievement, getMoves, getAchievementCategories } from '@/lib/admin-queries';
+import { Achievement, Move, AchievementCategory } from '@/types/admin';
 import FilterPanel, { FilterOption } from '@/components/common/FilterPanel';
 
 const { Option } = Select;
@@ -13,6 +13,7 @@ const { TextArea } = Input;
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [moves, setMoves] = useState<Move[]>([]);
+  const [categories, setCategories] = useState<AchievementCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingAchievement, setEditingAchievement] = useState<Achievement | null>(null);
@@ -196,6 +197,20 @@ export default function AchievementsPage() {
     }
   };
 
+  // 加载成就分类数据
+  const loadCategories = async () => {
+    try {
+      const result = await getAchievementCategories();
+      if (result.error) {
+        console.error('加载成就分类失败:', result.error);
+        return;
+      }
+      setCategories(result.data || []);
+    } catch (error) {
+      console.error('加载成就分类失败:', error);
+    }
+  };
+
   // 招式搜索时的排序函数
   const [searchKeyword, setSearchKeyword] = useState('');
   
@@ -342,6 +357,7 @@ export default function AchievementsPage() {
   useEffect(() => {
     loadAchievements();
     loadMoves();
+    loadCategories();
   }, []);
 
   const handleAdd = () => {
@@ -363,7 +379,8 @@ export default function AchievementsPage() {
       difficulty: achievement.difficulty,
       is_active: achievement.is_active,
       icon_url: achievement.icon_url,
-      move_ids: achievement.move_ids || []
+      move_ids: achievement.move_ids || [],
+      category_id: achievement.category_id // 设置分类ID
     });
 
     setModalVisible(true);
@@ -394,6 +411,7 @@ export default function AchievementsPage() {
     is_active: boolean;
     icon_url?: string;
     move_ids: number[];
+    category_id: number;
   }) => {
     setSubmitting(true);
     try {
@@ -418,7 +436,8 @@ export default function AchievementsPage() {
       // 更新values中的icon_url
       const finalValues = {
         ...values,
-        icon_url: iconUrl
+        icon_url: iconUrl,
+        category_id: values.category_id
       };
 
       if (editingAchievement) {
@@ -495,6 +514,14 @@ export default function AchievementsPage() {
       dataIndex: 'name',
       key: 'name',
       render: (text: string) => <strong>{text || '-'}</strong>,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: AchievementCategory | null) => (
+        <Tag color="purple">{category?.name || '未分类'}</Tag>
+      ),
     },
     {
       title: '描述',
@@ -677,6 +704,20 @@ export default function AchievementsPage() {
             rules={[{ required: true, message: '请输入成就名称' }]}
           >
             <Input placeholder="例如：基础达人" maxLength={100} />
+          </Form.Item>
+
+          <Form.Item
+            name="category_id"
+            label="成就分类"
+            rules={[{ required: true, message: '请选择成就分类' }]}
+          >
+            <Select placeholder="请选择成就分类">
+              {categories.map(category => (
+                <Option key={category.id} value={category.id}>
+                  {category.name}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item
@@ -897,4 +938,3 @@ export default function AchievementsPage() {
     </div>
   );
 }
-

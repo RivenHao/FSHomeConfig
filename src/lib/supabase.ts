@@ -14,4 +14,6 @@ export const TABLES = {
   MOVE_TIPS: 'move_tips',
   USER_MOVES_UNLOCK: 'user_moves_unlock',
   COMMUNITY_VIDEOS: 'community_videos',
+  ACHIEVEMENT_CATEGORIES: 'achievement_categories',
+  ACHIEVEMENTS: 'achievements',
 } as const;
