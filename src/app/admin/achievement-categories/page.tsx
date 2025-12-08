@@ -110,7 +110,7 @@ export default function AchievementCategoriesPage() {
       title: '操作',
       key: 'actions',
       width: 200,
-      render: (_: any, record: AchievementCategory) => (
+      render: (_: unknown, record: AchievementCategory) => (
         <Space>
           <Button
             type="link"
