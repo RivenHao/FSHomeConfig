@@ -168,6 +168,13 @@ export interface CommunityVideo {
   user_profiles?: { nickname: string | null; email: string | null };
 }
 
+// 成就分类类型
+export interface AchievementCategory {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
 // 成就类型
 export interface Achievement {
   id: string;
@@ -176,9 +183,11 @@ export interface Achievement {
   icon_url: string | null;
   difficulty: number; // 1-5
   is_active: boolean;
+  category_id?: number; // 关联的成就分类ID
   created_at: string;
   updated_at: string;
   // 关联数据
   move_ids?: number[]; // 关联的招式ID列表
   moves_count?: number; // 关联的招式数量
+  category?: AchievementCategory; // 关联的分类信息
 }

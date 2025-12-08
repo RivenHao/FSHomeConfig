@@ -6,16 +6,14 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
-  VideoCameraOutlined,
-  BookOutlined,
   DashboardOutlined,
   TeamOutlined,
   SettingOutlined,
   LogoutOutlined,
   BellOutlined,
   FireOutlined,
-  TagsOutlined,
   TrophyOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentAdmin, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
@@ -83,44 +81,62 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       label: '用户管理',
     },
     {
-      key: '/admin/moves',
+      key: 'moves-lib',
       icon: <FireOutlined />,
       label: '招式库管理',
+      children: [
+        {
+          key: '/admin/moves',
+          label: '招式管理',
+        },
+        {
+          key: '/admin/categories',
+          label: '招式分类管理',
+        },
+        {
+          key: '/admin/tags',
+          label: '标签库管理',
+        },
+      ]
     },
     {
-      key: '/admin/categories',
-      icon: <TagsOutlined />,
-      label: '招式分类管理',
+      key: 'user-audit',
+      icon: <AuditOutlined />,
+      label: '用户审核管理',
+      children: [
+        {
+          key: '/admin/videos',
+          label: '招式视频审核',
+        },
+        {
+          key: '/admin/community-videos',
+          label: '社区交流视频审核',
+        },
+        {
+          key: '/admin/tips',
+          label: '心得审核',
+        },
+      ]
     },
     {
-      key: '/admin/tags',
-      icon: <TagsOutlined />,
-      label: '标签库管理',
-    },
-    {
-      key: '/admin/videos',
-      icon: <VideoCameraOutlined />,
-      label: '招式视频审核',
-    },
-    {
-      key: '/admin/community-videos',
-      icon: <VideoCameraOutlined />,
-      label: '社区交流视频审核',
-    },
-    {
-      key: '/admin/tips',
-      icon: <BookOutlined />,
-      label: '心得审核',
+      key: 'achievements-wall',
+      icon: <TrophyOutlined />,
+      label: '成就墙管理',
+      children: [
+        {
+          key: '/admin/achievements',
+          label: '成就管理',
+        },
+        {
+          key: '/admin/achievement-categories',
+          label: '成就分类管理',
+        },
+      ]
     },
     {
       key: '/admin/notifications',
       icon: <BellOutlined />,
       label: '系统通知推送',
-    },
-    {
-      key: '/admin/achievements',
-      icon: <TrophyOutlined />,
-      label: '成就管理',
     },
     {
       key: 'weekly-challenge',
