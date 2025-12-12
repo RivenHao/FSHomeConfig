@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Tag, Image, Tooltip } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, EyeOutlined, CloseOutlined, InboxOutlined, TrophyOutlined } from '@ant-design/icons';
 import { getAchievements, createAchievement, updateAchievement, deleteAchievement, getMoves, getAchievementCategories } from '@/lib/admin-queries';
 import { Achievement, Move, AchievementCategory } from '@/types/admin';
@@ -377,6 +377,7 @@ export default function AchievementsPage() {
       name: achievement.name,
       description: achievement.description,
       difficulty: achievement.difficulty,
+      points: achievement.points || 0,
       is_active: achievement.is_active,
       icon_url: achievement.icon_url,
       move_ids: achievement.move_ids || [],
@@ -408,6 +409,7 @@ export default function AchievementsPage() {
     name: string;
     description: string;
     difficulty: number;
+    points: number;
     is_active: boolean;
     icon_url?: string;
     move_ids: number[];
@@ -437,6 +439,7 @@ export default function AchievementsPage() {
       const finalValues = {
         ...values,
         icon_url: iconUrl,
+        points: values.points,
         category_id: values.category_id
       };
 
@@ -569,6 +572,14 @@ export default function AchievementsPage() {
       },
     },
     {
+      title: '奖励积分',
+      dataIndex: 'points',
+      key: 'points',
+      render: (points: number) => (
+        <Tag color="gold">🏆 {points || 0} 积分</Tag>
+      ),
+    },
+    {
       title: '关联招式',
       dataIndex: 'moves_count',
       key: 'moves_count',
@@ -695,6 +706,7 @@ export default function AchievementsPage() {
           initialValues={{
             is_active: true,
             difficulty: 1,
+            points: 0,
             move_ids: []
           }}
         >
@@ -746,6 +758,21 @@ export default function AchievementsPage() {
               <Option value={4}>⭐⭐⭐⭐ 4星 (困难)</Option>
               <Option value={5}>⭐⭐⭐⭐⭐ 5星 (非常困难)</Option>
             </Select>
+          </Form.Item>
+
+          <Form.Item
+            name="points"
+            label="奖励积分"
+            rules={[{ required: true, message: '请输入奖励积分' }]}
+            tooltip="用户解锁该成就后获得的积分奖励"
+          >
+            <InputNumber 
+              min={0} 
+              max={99999}
+              placeholder="请输入积分" 
+              style={{ width: '100%' }}
+              addonAfter="积分"
+            />
           </Form.Item>
 
           <Form.Item

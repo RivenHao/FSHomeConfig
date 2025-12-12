@@ -182,6 +182,7 @@ export interface Achievement {
   description: string;
   icon_url: string | null;
   difficulty: number; // 1-5
+  points: number; // 新增积分字段
   is_active: boolean;
   category_id?: number; // 关联的成就分类ID
   created_at: string;
