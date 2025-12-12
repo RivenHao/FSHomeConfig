@@ -831,6 +831,7 @@ export async function createAchievement(achievement: {
   name: string;
   description: string;
   difficulty: number;
+  points: number;
   is_active: boolean;
   icon_url?: string;
   move_ids: number[];
@@ -844,6 +845,7 @@ export async function createAchievement(achievement: {
         name: achievement.name,
         description: achievement.description,
         difficulty: achievement.difficulty,
+        points: achievement.points,
         is_active: achievement.is_active,
         icon_url: achievement.icon_url || null,
         category_id: achievement.category_id || null
@@ -887,6 +889,7 @@ export async function updateAchievement(id: string, achievement: {
   name: string;
   description: string;
   difficulty: number;
+  points: number;
   is_active: boolean;
   icon_url?: string;
   move_ids: number[];
@@ -900,6 +903,7 @@ export async function updateAchievement(id: string, achievement: {
         name: achievement.name,
         description: achievement.description,
         difficulty: achievement.difficulty,
+        points: achievement.points,
         is_active: achievement.is_active,
         icon_url: achievement.icon_url || null,
         category_id: achievement.category_id || null,
