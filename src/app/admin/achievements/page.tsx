@@ -472,6 +472,14 @@ export default function AchievementsPage() {
 
   const columns = [
     {
+      title: '成就名称',
+      dataIndex: 'name',
+      key: 'name',
+      fixed: 'left' as const,
+      width: 150,
+      render: (text: string) => <strong>{text || '-'}</strong>,
+    },
+    {
       title: '成就图标',
       dataIndex: 'icon_url',
       key: 'icon_url',
@@ -511,12 +519,6 @@ export default function AchievementsPage() {
           </Tooltip>
         );
       },
-    },
-    {
-      title: '成就名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string) => <strong>{text || '-'}</strong>,
     },
     {
       title: '分类',
@@ -606,6 +608,8 @@ export default function AchievementsPage() {
     {
       title: '操作',
       key: 'actions',
+      fixed: 'right' as const,
+      width: 200,
       render: (record: Achievement) => (
         <Space>
           <Button
@@ -681,6 +685,7 @@ export default function AchievementsPage() {
           dataSource={filteredAchievements}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1400 }}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,

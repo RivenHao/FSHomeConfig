@@ -126,6 +126,8 @@ export default function TipsPage() {
     {
       title: '用户信息',
       key: 'user_info',
+      fixed: 'left' as const,
+      width: 200,
       render: (record: MoveTip) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
@@ -186,6 +188,8 @@ export default function TipsPage() {
     {
       title: '操作',
       key: 'actions',
+      fixed: 'right' as const,
+      width: 200,
       render: (record: MoveTip) => (
         <Space>
           <Button
@@ -290,6 +294,7 @@ export default function TipsPage() {
           dataSource={tips}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1200 }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
@@ -299,7 +304,6 @@ export default function TipsPage() {
             showTotal: (total) => `共 ${total} 条记录`,
           }}
           onChange={handleTableChange}
-          scroll={{ x: 1200 }}
         />
       </Card>
 

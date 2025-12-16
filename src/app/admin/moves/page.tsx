@@ -660,6 +660,8 @@ export default function MovesPage() {
       title: '招式名称',
       dataIndex: 'move_name',
       key: 'move_name',
+      fixed: 'left' as const,
+      width: 150,
       render: (text: string, record: Move) => (
         <div>
           <strong>{record.move_cn || text || '-'}</strong>
@@ -675,6 +677,8 @@ export default function MovesPage() {
       title: '主类型',
       dataIndex: 'main_type',
       key: 'main_type',
+      fixed: 'left' as const,
+      width: 100,
       render: (text: string) => <Tag color="blue">{text || '-'}</Tag>,
     },
     {
@@ -820,6 +824,8 @@ export default function MovesPage() {
     {
       title: '操作',
       key: 'actions',
+      fixed: 'right' as const,
+      width: 200,
       render: (record: Move) => (
         <Space>
           <Button
@@ -885,6 +891,7 @@ export default function MovesPage() {
           dataSource={filteredMoves}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1500 }}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,

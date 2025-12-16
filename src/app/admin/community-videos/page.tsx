@@ -198,6 +198,8 @@ export default function CommunityVideosPage() {
         {
             title: '用户信息',
             key: 'user_info',
+            fixed: 'left' as const,
+            width: 200,
             render: (record: CommunityVideo) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div>
@@ -235,9 +237,10 @@ export default function CommunityVideosPage() {
         {
             title: '视频预览',
             key: 'video_preview',
+            width: 150,
             render: (record: CommunityVideo) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {record.thumbnail_url && (
+                    {/* {record.thumbnail_url && (
                         <Image
                             src={record.thumbnail_url}
                             alt="视频缩略图"
@@ -245,7 +248,7 @@ export default function CommunityVideosPage() {
                             height={40}
                             style={{ objectFit: 'cover', borderRadius: 4 }}
                         />
-                    )}
+                    )} */}
                     <Button
                         type="link"
                         icon={<PlayCircleOutlined />}
@@ -289,6 +292,8 @@ export default function CommunityVideosPage() {
         {
             title: '操作',
             key: 'actions',
+            fixed: 'right' as const,
+            width: 200,
             render: (record: CommunityVideo) => (
                 <Space>
                     <Button
@@ -335,6 +340,7 @@ export default function CommunityVideosPage() {
                     dataSource={filteredVideos}
                     rowKey="id"
                     loading={loading}
+                    scroll={{ x: 1400 }}
                     pagination={{
                         current: pagination.current,
                         pageSize: pagination.pageSize,
@@ -344,7 +350,6 @@ export default function CommunityVideosPage() {
                         showTotal: (total) => `共 ${total} 条记录`,
                     }}
                     onChange={handleTableChange}
-                    scroll={{ x: 1600 }}
                 />
             </Card>
 

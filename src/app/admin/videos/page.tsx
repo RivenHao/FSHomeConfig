@@ -184,6 +184,8 @@ export default function VideosPage() {
     {
       title: '用户信息',
       key: 'user_info',
+      fixed: 'left' as const,
+      width: 200,
       render: (record: UserMoveSubmission) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
@@ -200,6 +202,8 @@ export default function VideosPage() {
     {
       title: '招式信息',
       key: 'move_info',
+      fixed: 'left' as const,
+      width: 200,
       render: (record: UserMoveSubmission) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
@@ -257,6 +261,8 @@ export default function VideosPage() {
     {
       title: '操作',
       key: 'actions',
+      fixed: 'right' as const,
+      width: 200,
       render: (record: UserMoveSubmission) => (
         <Space>
           <Button
@@ -303,6 +309,7 @@ export default function VideosPage() {
           dataSource={filteredVideos}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1400 }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
@@ -312,7 +319,6 @@ export default function VideosPage() {
             showTotal: (total) => `共 ${total} 条记录`,
           }}
           onChange={handleTableChange}
-          scroll={{ x: 1400 }}
         />
       </Card>
 
