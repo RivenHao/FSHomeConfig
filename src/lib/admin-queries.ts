@@ -143,19 +143,39 @@ export async function getMoveTips(params: PaginationParams & FilterParams) {
   return { data: enrichedData, error: null, total: count || 0 };
 }
 
-// 获取招式列表
+// 获取招式列表（获取所有数据，突破 1000 条限制）
 export async function getMoves() {
   try {
-    const { data, error } = await supabase
-      .from(TABLES.MOVES)
-      .select('*')
-      .order('created_at', { ascending: false });
+    const allData: Move[] = [];
+    const pageSize = 1000; // 每次请求 1000 条
+    let page = 0;
+    let hasMore = true;
 
-    if (error) {
-      return { data: null, error };
+    while (hasMore) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, error } = await supabase
+        .from(TABLES.MOVES)
+        .select('*')
+        .range(from, to)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return { data: null, error };
+      }
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        // 如果返回的数据少于 pageSize，说明没有更多数据了
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
     }
 
-    return { data, error: null };
+    return { data: allData, error: null };
   } catch (error) {
     return { data: null, error: error as Error };
   }
