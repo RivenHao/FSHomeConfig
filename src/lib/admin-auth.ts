@@ -35,23 +35,59 @@ export async function verifyAdminAccess(email: string, password: string): Promis
   }
 }
 
+// 获取当前管理员信息的返回类型
+export interface GetAdminResult {
+  admin: AdminUser | null;
+  error?: 'not_logged_in' | 'not_admin' | 'network_error';
+}
+
 // 获取当前管理员信息
 export async function getCurrentAdmin(): Promise<AdminUser | null> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+  const result = await getCurrentAdminWithError();
+  return result.admin;
+}
 
-    const { data: adminData } = await supabase
+// 获取当前管理员信息（带错误类型）
+export async function getCurrentAdminWithError(): Promise<GetAdminResult> {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    // 网络错误或其他错误
+    if (userError) {
+      // 检查是否是认证相关错误
+      if (userError.message?.includes('session') || userError.status === 401) {
+        return { admin: null, error: 'not_logged_in' };
+      }
+      console.error('获取用户信息失败:', userError);
+      return { admin: null, error: 'network_error' };
+    }
+    
+    if (!user) {
+      return { admin: null, error: 'not_logged_in' };
+    }
+
+    const { data: adminData, error: adminError } = await supabase
       .from(TABLES.ADMIN_USERS)
       .select('*')
       .eq('id', user.id)
       .eq('is_active', true)
       .single();
 
-    return adminData;
+    // 网络错误
+    if (adminError && adminError.code !== 'PGRST116') {
+      console.error('获取管理员信息失败:', adminError);
+      return { admin: null, error: 'network_error' };
+    }
+
+    // 不是管理员
+    if (!adminData) {
+      return { admin: null, error: 'not_admin' };
+    }
+
+    return { admin: adminData };
   } catch (error) {
-    console.error('获取当前管理员信息错误:', error);
-    return null;
+    console.error('获取当前管理员信息异常:', error);
+    return { admin: null, error: 'network_error' };
   }
 }
 

@@ -72,11 +72,14 @@ export interface UserParticipation {
   challenge_modes?: {
     mode_type: 'simple' | 'hard';
     title: string;
+    points_reward?: number;
   };
   user_profile?: {
     nickname: string;
     image_url?: string;
   };
+  // 实际获得的积分（从user_points表聚合）
+  earned_points?: number;
 }
 
 // 用户积分记录类型
@@ -209,6 +212,7 @@ export type UpdateChallengeModeRequest = Partial<CreateChallengeModeRequest>;
 export interface ReviewParticipationRequest {
   status: 'approved' | 'rejected';
   admin_note?: string;
+  bonus_points?: number;  // 额外积分（审核人员主观评分）
 }
 
 export interface ProcessSuggestionRequest {
