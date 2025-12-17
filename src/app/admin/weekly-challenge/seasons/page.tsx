@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber, Tooltip } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, StopOutlined, PlayCircleOutlined, TrophyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, TrophyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
     getSeasons,
@@ -81,6 +81,12 @@ export default function SeasonsPage() {
     }, []);
 
     const handleAdd = () => {
+        // 检查是否已有活跃赛季
+        if (stats?.active_season) {
+            message.warning(`已存在活跃赛季「${stats.active_season.name}」，请先结束当前赛季后再创建新赛季`);
+            return;
+        }
+
         setEditingSeason(null);
         form.resetFields();
 
@@ -193,7 +199,7 @@ export default function SeasonsPage() {
                 // 更新
                 const result = await updateSeason(editingSeason.id, seasonData as UpdateSeasonRequest);
                 if (result.error) {
-                    message.error('更新赛季失败');
+                    message.error(result.error);
                     return;
                 }
                 message.success('更新赛季成功');
@@ -201,7 +207,7 @@ export default function SeasonsPage() {
                 // 新增
                 const result = await createSeason(seasonData as CreateSeasonRequest);
                 if (result.error) {
-                    message.error('创建赛季失败');
+                    message.error(result.error);
                     return;
                 }
                 message.success('创建赛季成功');
@@ -443,13 +449,16 @@ export default function SeasonsPage() {
                         >
                             刷新
                         </Button>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={handleAdd}
-                        >
-                            新增赛季
-                        </Button>
+                        <Tooltip title={stats?.active_season ? '已有活跃赛季，请先结束当前赛季' : '创建新赛季'}>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={handleAdd}
+                                disabled={!!stats?.active_season}
+                            >
+                                新增赛季
+                            </Button>
+                        </Tooltip>
                     </Space>
                 }
             >
@@ -537,9 +546,19 @@ export default function SeasonsPage() {
                             name="status"
                             label="赛季状态"
                             rules={[{ required: true, message: '请选择赛季状态' }]}
+                            extra={
+                                stats?.active_season && editingSeason.status !== 'active'
+                                    ? <span style={{ color: '#ff4d4f' }}>已有活跃赛季，无法将此赛季设为进行中</span>
+                                    : null
+                            }
                         >
                             <Select placeholder="请选择状态">
-                                <Option value="active">进行中</Option>
+                                <Option 
+                                    value="active"
+                                    disabled={!!(stats?.active_season && editingSeason.status !== 'active')}
+                                >
+                                    进行中 {stats?.active_season && editingSeason.status !== 'active' ? '（已有活跃赛季）' : ''}
+                                </Option>
                                 <Option value="ended">已结束</Option>
                                 <Option value="settled">已结算</Option>
                             </Select>

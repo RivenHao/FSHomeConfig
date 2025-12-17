@@ -3,6 +3,13 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
+
+// 设置 dayjs 中文
+dayjs.locale('zh-cn');
 
 // 动态导入AdminLayout，避免服务器端渲染问题
 const AdminLayout = dynamic(() => import('@/components/admin/AdminLayout'), {
@@ -29,8 +36,16 @@ export default function AdminLayoutWrapper({
   
   // 在客户端渲染后，根据路径决定是否使用AdminLayout
   if (pathname === '/admin/login') {
-    return children;
+    return (
+      <ConfigProvider locale={zhCN}>
+        {children}
+      </ConfigProvider>
+    );
   }
   
-  return <AdminLayout>{children}</AdminLayout>;
+  return (
+    <ConfigProvider locale={zhCN}>
+      <AdminLayout>{children}</AdminLayout>
+    </ConfigProvider>
+  );
 }

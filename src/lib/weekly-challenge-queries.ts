@@ -95,6 +95,22 @@ export async function getCurrentSeason(): Promise<ApiResponse<Season>> {
 // 创建赛季
 export async function createSeason(seasonData: CreateSeasonRequest): Promise<ApiResponse<Season>> {
   try {
+    // 检查是否已有活跃赛季（新建赛季默认状态是 active）
+    const { data: activeSeason, error: checkError } = await supabase
+      .from('seasons')
+      .select('id, name')
+      .eq('status', 'active')
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('检查活跃赛季失败:', checkError);
+      return { error: '检查活跃赛季失败: ' + checkError.message };
+    }
+
+    if (activeSeason) {
+      return { error: `已存在活跃赛季「${activeSeason.name}」，请先结束该赛季后再创建新赛季` };
+    }
+
     const { data, error } = await supabase
       .from('seasons')
       .insert([seasonData])
@@ -116,6 +132,25 @@ export async function createSeason(seasonData: CreateSeasonRequest): Promise<Api
 // 更新赛季
 export async function updateSeason(id: string, seasonData: UpdateSeasonRequest): Promise<ApiResponse<Season>> {
   try {
+    // 如果要将状态改为 active，需要检查是否已有其他活跃赛季
+    if (seasonData.status === 'active') {
+      const { data: activeSeason, error: checkError } = await supabase
+        .from('seasons')
+        .select('id, name')
+        .eq('status', 'active')
+        .neq('id', id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('检查活跃赛季失败:', checkError);
+        return { error: '检查活跃赛季失败: ' + checkError.message };
+      }
+
+      if (activeSeason) {
+        return { error: `已存在活跃赛季「${activeSeason.name}」，同时只能有一个活跃赛季` };
+      }
+    }
+
     const { data, error } = await supabase
       .from('seasons')
       .update(seasonData)
