@@ -632,7 +632,7 @@ export async function getParticipations(
       .select(`
         *,
         weekly_challenges!challenge_id(title, week_number),
-        challenge_modes!mode_id(mode_type, title)
+        challenge_modes!mode_id(mode_type, title, points_reward)
       `, { count: 'exact' });
 
     // 应用筛选条件
@@ -661,27 +661,50 @@ export async function getParticipations(
       return { error: error.message };
     }
 
-    // 获取用户信息
+    // 获取用户信息和实际得分
     let enrichedData = data || [];
     if (data && data.length > 0) {
       const userIds = [...new Set(data.map(item => item.user_id))];
+      const participationIds = data.map(item => item.id);
       console.log('👥 需要查询的用户ID:', userIds);
       
-      const { data: userProfiles, error: profileError } = await supabase
-        .from(TABLES.USER_PROFILES)
-        .select('id, nickname, image_url')
-        .in('id', userIds);
+      // 并行查询用户资料和积分记录
+      const [profileResult, pointsResult] = await Promise.all([
+        supabase
+          .from(TABLES.USER_PROFILES)
+          .select('id, nickname, image_url')
+          .in('id', userIds),
+        supabase
+          .from('user_points')
+          .select('participation_id, points')
+          .in('participation_id', participationIds)
+      ]);
+
+      const userProfiles = profileResult.data;
+      const pointsData = pointsResult.data;
 
       console.log('👤 查询到的用户资料:', userProfiles);
-      console.log('❌ 用户资料查询错误:', profileError);
+      console.log('❌ 用户资料查询错误:', profileResult.error);
+      console.log('💰 查询到的积分记录:', pointsData);
 
-      // 将用户信息合并到参与记录中
+      // 聚合每个参与记录的实际得分
+      const pointsMap = new Map<string, number>();
+      pointsData?.forEach(record => {
+        if (record.participation_id) {
+          const current = pointsMap.get(record.participation_id) || 0;
+          pointsMap.set(record.participation_id, current + record.points);
+        }
+      });
+
+      // 将用户信息和实际得分合并到参与记录中
       enrichedData = data.map(item => {
         const userProfile = userProfiles?.find(profile => profile.id === item.user_id);
-        console.log(`🔗 用户 ${item.user_id} 匹配到的资料:`, userProfile);
+        const earnedPoints = pointsMap.get(item.id) || 0;
+        console.log(`🔗 用户 ${item.user_id} 匹配到的资料:`, userProfile, `实际得分: ${earnedPoints}`);
         return {
           ...item,
-          user_profile: userProfile
+          user_profile: userProfile,
+          earned_points: earnedPoints
         };
       });
     }
@@ -722,11 +745,12 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
       return { error: '获取参与记录失败' };
     }
 
-    // 2. 更新参与记录状态
+    // 2. 更新参与记录状态（只更新 status 和 admin_note，不包含 bonus_points）
     const { data, error } = await supabase
       .from('user_participations')
       .update({
-        ...reviewData,
+        status: reviewData.status,
+        admin_note: reviewData.admin_note,
         reviewed_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -742,21 +766,61 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
     if (reviewData.status === 'approved') {
       const seasonId = participation.weekly_challenges?.season_id;
       const modeType = participation.challenge_modes?.mode_type;
+      const modeId = participation.mode_id;
+      const challengeId = participation.challenge_id;
       const pointsReward = participation.challenge_modes?.points_reward || 0;
 
       if (seasonId && pointsReward > 0) {
-        // 检查是否已经存在积分记录（防止重复写入）
-        const { data: existingPoints } = await supabase
+        // 检查该用户在该挑战、该模式下是否已经获得过积分（每个模式只发放一次）
+        // 需要查找该用户在同一挑战、同一模式下已审核通过的其他参与记录的积分
+        const { data: existingModePoints, error: checkError } = await supabase
           .from('user_points')
-          .select('id')
-          .eq('participation_id', id)
-          .single();
+          .select(`
+            id,
+            participation_id,
+            user_participations!inner(
+              user_id,
+              challenge_id,
+              mode_id
+            )
+          `)
+          .eq('user_participations.user_id', participation.user_id)
+          .eq('user_participations.challenge_id', challengeId)
+          .eq('user_participations.mode_id', modeId);
 
-        if (!existingPoints) {
+        // 如果查询出错，尝试使用备用方案
+        let hasExistingPoints = false;
+        if (checkError) {
+          console.log('联表查询失败，使用备用方案:', checkError.message);
+          // 备用方案：先获取用户在该挑战、该模式下所有已通过的参与记录
+          const { data: approvedParticipations } = await supabase
+            .from('user_participations')
+            .select('id')
+            .eq('user_id', participation.user_id)
+            .eq('challenge_id', challengeId)
+            .eq('mode_id', modeId)
+            .eq('status', 'approved')
+            .neq('id', id); // 排除当前记录
+
+          if (approvedParticipations && approvedParticipations.length > 0) {
+            // 检查这些参与记录是否有对应的积分记录
+            const participationIds = approvedParticipations.map(p => p.id);
+            const { data: pointsRecords } = await supabase
+              .from('user_points')
+              .select('id')
+              .in('participation_id', participationIds);
+
+            hasExistingPoints = !!(pointsRecords && pointsRecords.length > 0);
+          }
+        } else {
+          hasExistingPoints = !!(existingModePoints && existingModePoints.length > 0);
+        }
+
+        if (!hasExistingPoints) {
           // 确定积分类型
           const pointType = modeType === 'simple' ? 'simple_completion' : 'hard_completion';
 
-          // 写入积分记录
+          // 写入固定参与积分记录
           const { error: pointsError } = await supabase
             .from('user_points')
             .insert({
@@ -769,10 +833,9 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
             });
 
           if (pointsError) {
-            console.error('写入积分记录失败:', pointsError);
-            // 积分写入失败不影响审核结果，但记录日志
+            console.error('写入固定参与积分失败:', pointsError);
           } else {
-            console.log('积分记录已写入:', {
+            console.log('固定参与积分已写入:', {
               user_id: participation.user_id,
               season_id: seasonId,
               points: pointsReward,
@@ -780,7 +843,34 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
             });
           }
         } else {
-          console.log('积分记录已存在，跳过写入');
+          console.log('该用户在此挑战的此模式下已获得过固定参与积分，跳过写入');
+        }
+      }
+
+      // 写入额外积分（每次审核通过都可以发放）
+      if (reviewData.bonus_points && reviewData.bonus_points > 0) {
+        const seasonId = participation.weekly_challenges?.season_id;
+        if (seasonId) {
+          const { error: bonusError } = await supabase
+            .from('user_points')
+            .insert({
+              user_id: participation.user_id,
+              season_id: seasonId,
+              participation_id: id,
+              point_type: 'bonus',
+              points: reviewData.bonus_points,
+              description: `审核额外积分奖励 ${reviewData.bonus_points} 分${reviewData.admin_note ? `（${reviewData.admin_note}）` : ''}`,
+            });
+
+          if (bonusError) {
+            console.error('写入额外积分失败:', bonusError);
+          } else {
+            console.log('额外积分已写入:', {
+              user_id: participation.user_id,
+              season_id: seasonId,
+              bonus_points: reviewData.bonus_points,
+            });
+          }
         }
       }
     }

@@ -16,7 +16,7 @@ import {
   AuditOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
-import { getCurrentAdmin, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
+import { getCurrentAdminWithError, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
 import { AdminUser } from '@/types/admin';
 
 const { Header, Sider, Content } = Layout;
@@ -36,25 +36,34 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const checkAdminAuth = useCallback(async () => {
     try {
-      const adminData = await getCurrentAdmin();
-      if (!adminData) {
-        // 如果不在登录页面，则跳转到登录页
-        if (pathname !== '/admin/login') {
-          router.push('/admin/login');
+      const { admin: adminData, error } = await getCurrentAdminWithError();
+      
+      if (error) {
+        // 只有认证相关错误才跳转登录页
+        if (error === 'not_logged_in' || error === 'not_admin') {
+          if (pathname !== '/admin/login') {
+            router.push('/admin/login');
+          }
+        } else if (error === 'network_error') {
+          // 网络错误不跳转，只记录日志
+          console.warn('网络错误，保持当前状态');
+          // 如果已有管理员信息，保持不变
+          if (!admin) {
+            // 首次加载时遇到网络错误，可以重试或显示错误提示
+            console.error('首次加载遇到网络错误');
+          }
         }
         return;
       }
+      
       setAdmin(adminData);
     } catch (error) {
       console.error('验证管理员身份失败:', error);
-      // 如果不在登录页面，则跳转到登录页
-      if (pathname !== '/admin/login') {
-        router.push('/admin/login');
-      }
+      // 捕获到异常也不跳转，避免误跳转
     } finally {
       setLoading(false);
     }
-  }, [router, pathname]);
+  }, [router, pathname, admin]);
 
   useEffect(() => {
     checkAdminAuth();

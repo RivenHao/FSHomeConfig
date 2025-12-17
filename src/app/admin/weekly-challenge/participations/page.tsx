@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Tag, DatePicker, Avatar, Image } from 'antd';
-import { CheckOutlined, CloseOutlined, EyeOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Tag, DatePicker, Avatar, Image, InputNumber } from 'antd';
+import { EyeOutlined, ReloadOutlined, PlayCircleOutlined, TrophyOutlined, GiftOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
   getParticipations,
@@ -99,34 +99,14 @@ export default function ParticipationsPage() {
     setReviewModalVisible(true);
   };
 
-  const handleQuickReview = async (participation: UserParticipation, status: 'approved' | 'rejected') => {
-    try {
-      const reviewData: ReviewParticipationRequest = {
-        status,
-        admin_note: status === 'approved' ? '快速通过审核' : '快速拒绝',
-      };
-
-      const result = await reviewParticipation(participation.id, reviewData);
-      if (result.error) {
-        message.error(`${status === 'approved' ? '通过' : '拒绝'}审核失败`);
-        return;
-      }
-
-      message.success(`${status === 'approved' ? '通过' : '拒绝'}审核成功`);
-      loadParticipations(pagination.current, pagination.pageSize);
-    } catch (error) {
-      console.error('审核失败:', error);
-      message.error('审核失败');
-    }
-  };
-
-  const handleSubmitReview = async (values: { status: 'approved' | 'rejected'; admin_note?: string }) => {
+  const handleSubmitReview = async (values: { status: 'approved' | 'rejected'; admin_note?: string; bonus_points?: number }) => {
     if (!selectedParticipation) return;
 
     try {
       const reviewData: ReviewParticipationRequest = {
         status: values.status,
         admin_note: values.admin_note,
+        bonus_points: values.bonus_points,
       };
 
       const result = await reviewParticipation(selectedParticipation.id, reviewData);
@@ -135,7 +115,14 @@ export default function ParticipationsPage() {
         return;
       }
 
-      message.success('审核完成');
+      // 计算额外积分提示
+      const bonusPoints = values.bonus_points || 0;
+
+      message.success(
+        values.status === 'approved' 
+          ? `审核通过！${bonusPoints > 0 ? `本次发放额外积分 ${bonusPoints} 分` : ''}` 
+          : '已拒绝'
+      );
       setReviewModalVisible(false);
       form.resetFields();
       setSelectedParticipation(null);
@@ -306,40 +293,44 @@ export default function ParticipationsPage() {
       ),
     },
     {
+      title: '基础积分',
+      key: 'base_points',
+      width: 100,
+      render: (record: UserParticipation) => (
+        <Tag color="blue" icon={<TrophyOutlined />}>
+          {record.challenge_modes?.points_reward || 0} 分
+        </Tag>
+      ),
+    },
+    {
+      title: '实际得分',
+      key: 'earned_points',
+      width: 100,
+      render: (record: UserParticipation) => {
+        // 只有审核通过的才显示实际得分
+        if (record.status !== 'approved') {
+          return <span style={{ color: '#999' }}>-</span>;
+        }
+        return (
+          <Tag color="green" icon={<GiftOutlined />}>
+            {record.earned_points || 0} 分
+          </Tag>
+        );
+      },
+    },
+    {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 120,
       render: (record: UserParticipation) => (
-        <Space>
-          {record.status === 'pending' && (
-            <>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleQuickReview(record, 'approved')}
-              >
-                通过
-              </Button>
-              <Button
-                danger
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => handleQuickReview(record, 'rejected')}
-              >
-                拒绝
-              </Button>
-            </>
-          )}
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleReview(record)}
-            size="small"
-          >
-            详细审核
-          </Button>
-        </Space>
+        <Button
+          type="primary"
+          icon={<EyeOutlined />}
+          onClick={() => handleReview(record)}
+          size="small"
+        >
+          审核
+        </Button>
       ),
     },
   ];
@@ -491,6 +482,31 @@ export default function ParticipationsPage() {
                 </div>
               </div>
 
+              {/* 积分信息 */}
+              <div style={{ 
+                marginTop: 16, 
+                padding: 16, 
+                backgroundColor: '#e6f7ff', 
+                borderRadius: 6,
+                border: '1px solid #91d5ff'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TrophyOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>固定参与积分</div>
+                      <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#1890ff' }}>
+                        {selectedParticipation.challenge_modes?.points_reward || 0} 分
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ color: '#999', fontSize: '12px' }}>
+                    <div>• 该模式配置的固定积分</div>
+                    <div>• 每个用户每个模式仅发放一次</div>
+                  </div>
+                </div>
+              </div>
+
               {selectedParticipation.submission_note && (
                 <div style={{ marginTop: 16 }}>
                   <h4>用户提交说明</h4>
@@ -530,8 +546,9 @@ export default function ParticipationsPage() {
               layout="vertical"
               onFinish={handleSubmitReview}
               initialValues={{
-                status: selectedParticipation.status,
+                status: selectedParticipation.status === 'pending' ? undefined : selectedParticipation.status,
                 admin_note: selectedParticipation.admin_note,
+                bonus_points: 0,
               }}
             >
               <Form.Item
@@ -540,10 +557,42 @@ export default function ParticipationsPage() {
                 rules={[{ required: true, message: '请选择审核结果' }]}
               >
                 <Select placeholder="请选择审核结果">
-                  <Option value="approved">通过</Option>
-                  <Option value="rejected">拒绝</Option>
-                  <Option value="pending">待审核</Option>
+                  <Option value="approved">✅ 通过</Option>
+                  <Option value="rejected">❌ 拒绝</Option>
                 </Select>
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) => prevValues.status !== currentValues.status}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('status') === 'approved' ? (
+                    <Form.Item
+                      name="bonus_points"
+                      label={
+                        <span>
+                          <GiftOutlined style={{ marginRight: 4, color: '#fa8c16' }} />
+                          额外积分奖励
+                        </span>
+                      }
+                      tooltip="根据视频质量给予的额外积分，每次审核都可以发放"
+                      extra={
+                        <div style={{ color: '#666', fontSize: '12px' }}>
+                          额外积分可以根据视频质量、创意等主观因素评定，建议范围 0-50 分
+                        </div>
+                      }
+                    >
+                      <InputNumber
+                        min={0}
+                        max={100}
+                        placeholder="请输入额外积分"
+                        style={{ width: '100%' }}
+                        addonAfter="分"
+                      />
+                    </Form.Item>
+                  ) : null
+                }
               </Form.Item>
 
               <Form.Item
