@@ -49,33 +49,117 @@ export default function LeaderboardPage() {
 
     setLoading(true);
     try {
-      // 获取排行榜数据
-      const { data: leaderboardData, error } = await supabase
+      // 1. 先尝试从 season_leaderboards 获取数据（适用于已结束的赛季）
+      const { data: leaderboardData, error: leaderboardError } = await supabase
         .from('season_leaderboards')
-        .select(`
-          *,
-          user_profiles!season_leaderboards_user_id_fkey(
-            nickname,
-            image_url
-          )
-        `)
+        .select('*')
         .eq('season_id', seasonId)
         .order('rank_position');
 
-      if (error) {
-        console.error('获取排行榜数据失败:', error);
-        message.error('获取排行榜数据失败');
-        return;
+      let finalData: SeasonLeaderboard[] = [];
+
+      // 2. 如果 season_leaderboards 有数据，直接使用
+      if (!leaderboardError && leaderboardData && leaderboardData.length > 0) {
+        console.log('从 season_leaderboards 获取到数据:', leaderboardData.length, '条');
+        finalData = leaderboardData;
+      } else {
+        // 3. 如果没有数据，从 user_points 表动态计算（适用于进行中的赛季）
+        console.log('season_leaderboards 无数据，从 user_points 动态计算...');
+        
+        const { data: pointsData, error: pointsError } = await supabase
+          .from('user_points')
+          .select('user_id, points, point_type')
+          .eq('season_id', seasonId);
+
+        if (pointsError) {
+          console.error('获取积分数据失败:', pointsError);
+          message.error('获取积分数据失败');
+          return;
+        }
+
+        if (pointsData && pointsData.length > 0) {
+          // 按用户聚合积分
+          const userPointsMap = new Map<string, {
+            total_points: number;
+            participation_count: number;
+            simple_completions: number;
+            hard_completions: number;
+          }>();
+
+          pointsData.forEach(record => {
+            const existing = userPointsMap.get(record.user_id) || {
+              total_points: 0,
+              participation_count: 0,
+              simple_completions: 0,
+              hard_completions: 0,
+            };
+
+            existing.total_points += record.points || 0;
+            
+            if (record.point_type === 'participation') {
+              existing.participation_count += 1;
+            } else if (record.point_type === 'simple_completion') {
+              existing.simple_completions += 1;
+              existing.participation_count += 1;
+            } else if (record.point_type === 'hard_completion') {
+              existing.hard_completions += 1;
+              existing.participation_count += 1;
+            }
+
+            userPointsMap.set(record.user_id, existing);
+          });
+
+          // 转换为数组并排序
+          const sortedUsers = Array.from(userPointsMap.entries())
+            .map(([user_id, stats]) => ({
+              id: `temp-${user_id}`,
+              season_id: seasonId,
+              user_id,
+              ...stats,
+              rank_position: 0,
+              is_winner: false,
+              prize_status: 'none' as const,
+              created_at: new Date().toISOString(),
+            }))
+            .sort((a, b) => b.total_points - a.total_points);
+
+          // 添加排名
+          finalData = sortedUsers.map((item, index) => ({
+            ...item,
+            rank_position: index + 1,
+          }));
+
+          console.log('从 user_points 动态计算得到:', finalData.length, '条记录');
+        }
       }
 
-      setLeaderboard(leaderboardData || []);
+      // 4. 获取用户信息并合并
+      let enrichedData = finalData;
+      if (finalData.length > 0) {
+        const userIds = [...new Set(finalData.map(item => item.user_id))];
+        
+        const { data: userProfiles } = await supabase
+          .from('user_profiles')
+          .select('id, nickname, image_url')
+          .in('id', userIds);
 
-      // 计算统计数据
-      if (leaderboardData && leaderboardData.length > 0) {
-        const totalParticipants = leaderboardData.length;
-        const totalPoints = leaderboardData.reduce((sum, item) => sum + item.total_points, 0);
+        enrichedData = finalData.map(item => {
+          const userProfile = userProfiles?.find(profile => profile.id === item.user_id);
+          return {
+            ...item,
+            user_profile: userProfile ? { nickname: userProfile.nickname, image_url: userProfile.image_url } : undefined
+          };
+        });
+      }
+
+      setLeaderboard(enrichedData);
+
+      // 5. 计算统计数据
+      if (finalData.length > 0) {
+        const totalParticipants = finalData.length;
+        const totalPoints = finalData.reduce((sum, item) => sum + item.total_points, 0);
         const avgPoints = Math.round(totalPoints / totalParticipants);
-        const topScore = Math.max(...leaderboardData.map(item => item.total_points));
+        const topScore = Math.max(...finalData.map(item => item.total_points));
 
         setSeasonStats({
           totalParticipants,
