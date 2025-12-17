@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber } from 'antd';
 import type { TableProps } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, SettingOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlayCircleOutlined, SettingOutlined, UndoOutlined, StopOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
     getChallenges,
@@ -145,6 +145,36 @@ export default function ChallengesPage() {
             console.error('结束挑战赛失败:', error);
             message.error('结束挑战赛失败');
         }
+    };
+
+    // 重新打开挑战赛
+    const handleReopenChallenge = async (challenge: WeeklyChallenge) => {
+        try {
+            // 检查所属赛季状态
+            const season = seasons.find(s => s.id === challenge.season_id);
+            if (season && season.status !== 'active') {
+                message.error(`无法重新打开：所属赛季「${season.name}」已${season.status === 'ended' ? '结束' : '结算'}，请先重新打开赛季`);
+                return;
+            }
+
+            const result = await updateChallenge(challenge.id, { status: 'active' });
+            if (result.error) {
+                message.error('重新打开挑战赛失败');
+                return;
+            }
+            message.success('挑战赛已重新打开');
+            loadChallenges(pagination.current, pagination.pageSize);
+            loadStats();
+        } catch (error) {
+            console.error('重新打开挑战赛失败:', error);
+            message.error('重新打开挑战赛失败');
+        }
+    };
+
+    // 检查挑战赛能否重新打开
+    const canReopenChallenge = (challenge: WeeklyChallenge): boolean => {
+        const season = seasons.find(s => s.id === challenge.season_id);
+        return season?.status === 'active';
     };
 
     useEffect(() => {
@@ -467,8 +497,10 @@ export default function ChallengesPage() {
         {
             title: '操作',
             key: 'actions',
+            width: 320,
             render: (record: WeeklyChallenge) => (
-                <Space>
+                <Space wrap>
+                    {/* 草稿状态 - 显示激活按钮 */}
                     {record.status === 'draft' && (
                         <Popconfirm
                             title="确定要激活这个挑战赛吗？"
@@ -486,6 +518,7 @@ export default function ChallengesPage() {
                             </Button>
                         </Popconfirm>
                     )}
+                    {/* 进行中状态 - 显示结束按钮 */}
                     {record.status === 'active' && (
                         <Popconfirm
                             title="确定要结束这个挑战赛吗？"
@@ -498,10 +531,50 @@ export default function ChallengesPage() {
                                 type="default"
                                 size="small"
                                 danger
+                                icon={<StopOutlined />}
                             >
                                 结束
                             </Button>
                         </Popconfirm>
+                    )}
+                    {/* 已结束状态 - 显示重新打开按钮（仅当赛季还在进行中时可用） */}
+                    {record.status === 'ended' && (
+                        canReopenChallenge(record) ? (
+                            <Popconfirm
+                                title="确定要重新打开这个挑战赛吗？"
+                                description={
+                                    <div>
+                                        <p>重新打开后：</p>
+                                        <ul style={{ margin: '8px 0', paddingLeft: 20 }}>
+                                            <li>用户可以继续参与挑战</li>
+                                            <li>挑战状态变更为「进行中」</li>
+                                        </ul>
+                                    </div>
+                                }
+                                onConfirm={() => handleReopenChallenge(record)}
+                                okText="确定"
+                                cancelText="取消"
+                            >
+                                <Button
+                                    type="default"
+                                    size="small"
+                                    icon={<UndoOutlined />}
+                                    style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                                >
+                                    重新打开
+                                </Button>
+                            </Popconfirm>
+                        ) : (
+                            <Button
+                                type="default"
+                                size="small"
+                                icon={<UndoOutlined />}
+                                disabled
+                                title="所属赛季已结束，无法重新打开"
+                            >
+                                重新打开
+                            </Button>
+                        )
                     )}
                     <Button
                         type="link"

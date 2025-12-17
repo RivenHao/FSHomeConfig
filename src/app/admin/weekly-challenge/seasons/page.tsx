@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Popconfirm, Tag, DatePicker, InputNumber, Tooltip } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, StopOutlined, PlayCircleOutlined, TrophyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
     getSeasons,
@@ -10,6 +10,8 @@ import {
     updateSeason,
     deleteSeason,
     getSeasonStats,
+    endSeasonAndGenerateLeaderboard,
+    reopenSeason,
 } from '@/lib/weekly-challenge-queries';
 import {
     Season,
@@ -121,6 +123,50 @@ export default function SeasonsPage() {
         } catch (error) {
             console.error('删除赛季失败:', error);
             message.error('删除赛季失败');
+        }
+    };
+
+    // 结束赛季并生成排行榜
+    const handleEndSeason = async (season: Season) => {
+        try {
+            message.loading({ content: '正在结束赛季并生成排行榜...', key: 'endSeason' });
+            const result = await endSeasonAndGenerateLeaderboard(season.id);
+            if (result.error) {
+                message.error({ content: result.error, key: 'endSeason' });
+                return;
+            }
+            message.success({
+                content: `赛季「${season.name}」已结束，已生成 ${result.data?.leaderboardCount || 0} 条排行榜记录`,
+                key: 'endSeason',
+                duration: 3,
+            });
+            loadSeasons(pagination.current, pagination.pageSize);
+            loadStats();
+        } catch (error) {
+            console.error('结束赛季失败:', error);
+            message.error({ content: '结束赛季失败', key: 'endSeason' });
+        }
+    };
+
+    // 重新打开赛季
+    const handleReopenSeason = async (season: Season) => {
+        try {
+            message.loading({ content: '正在重新打开赛季...', key: 'reopenSeason' });
+            const result = await reopenSeason(season.id);
+            if (result.error) {
+                message.error({ content: result.error, key: 'reopenSeason' });
+                return;
+            }
+            message.success({
+                content: `赛季「${season.name}」已重新打开`,
+                key: 'reopenSeason',
+                duration: 3,
+            });
+            loadSeasons(pagination.current, pagination.pageSize);
+            loadStats();
+        } catch (error) {
+            console.error('重新打开赛季失败:', error);
+            message.error({ content: '重新打开赛季失败', key: 'reopenSeason' });
         }
     };
 
@@ -257,8 +303,9 @@ export default function SeasonsPage() {
         {
             title: '操作',
             key: 'actions',
+            width: 280,
             render: (record: Season) => (
-                <Space>
+                <Space wrap>
                     <Button
                         type="link"
                         icon={<EditOutlined />}
@@ -266,6 +313,69 @@ export default function SeasonsPage() {
                     >
                         编辑
                     </Button>
+
+                    {/* 结束赛季按钮 - 仅活跃赛季显示 */}
+                    {record.status === 'active' && (
+                        <Popconfirm
+                            title="确定要结束这个赛季吗？"
+                            description={
+                                <div>
+                                    <p>结束后将：</p>
+                                    <ul style={{ margin: '8px 0', paddingLeft: 20 }}>
+                                        <li>从积分记录自动生成排行榜</li>
+                                        <li>赛季状态变更为「已结束」</li>
+                                        <li>前3名自动标记为获奖者</li>
+                                    </ul>
+                                </div>
+                            }
+                            onConfirm={() => handleEndSeason(record)}
+                            okText="确定结束"
+                            cancelText="取消"
+                            okButtonProps={{ danger: true }}
+                        >
+                            <Tooltip title="结束赛季并生成排行榜">
+                                <Button
+                                    type="link"
+                                    icon={<TrophyOutlined />}
+                                    style={{ color: '#faad14' }}
+                                >
+                                    结束赛季
+                                </Button>
+                            </Tooltip>
+                        </Popconfirm>
+                    )}
+
+                    {/* 重新打开按钮 - 仅已结束或已结算赛季显示 */}
+                    {(record.status === 'ended' || record.status === 'settled') && (
+                        <Popconfirm
+                            title="确定要重新打开这个赛季吗？"
+                            description={
+                                <div>
+                                    <p>重新打开后将：</p>
+                                    <ul style={{ margin: '8px 0', paddingLeft: 20 }}>
+                                        <li>赛季状态变更为「进行中」</li>
+                                        <li>清空已生成的排行榜数据</li>
+                                        <li>用户可以继续参与挑战</li>
+                                    </ul>
+                                    <p style={{ color: '#ff4d4f' }}>注意：同时只能有一个活跃赛季</p>
+                                </div>
+                            }
+                            onConfirm={() => handleReopenSeason(record)}
+                            okText="确定打开"
+                            cancelText="取消"
+                        >
+                            <Tooltip title="重新打开赛季">
+                                <Button
+                                    type="link"
+                                    icon={<PlayCircleOutlined />}
+                                    style={{ color: '#52c41a' }}
+                                >
+                                    重新打开
+                                </Button>
+                            </Tooltip>
+                        </Popconfirm>
+                    )}
+
                     <Popconfirm
                         title="确定要删除这个赛季吗？"
                         description="删除后将无法恢复，相关的挑战赛数据也会被删除。"
