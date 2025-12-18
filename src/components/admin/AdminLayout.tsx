@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, theme, Typography } from 'antd';
 import {
   MenuFoldOutlined,
@@ -34,40 +34,47 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const { token } = theme.useToken();
 
-  const checkAdminAuth = useCallback(async () => {
-    try {
-      const { admin: adminData, error } = await getCurrentAdminWithError();
-      
-      if (error) {
-        // 只有认证相关错误才跳转登录页
-        if (error === 'not_logged_in' || error === 'not_admin') {
-          if (pathname !== '/admin/login') {
-            router.push('/admin/login');
-          }
-        } else if (error === 'network_error') {
-          // 网络错误不跳转，只记录日志
-          console.warn('网络错误，保持当前状态');
-          // 如果已有管理员信息，保持不变
-          if (!admin) {
-            // 首次加载时遇到网络错误，可以重试或显示错误提示
-            console.error('首次加载遇到网络错误');
-          }
-        }
-        return;
-      }
-      
-      setAdmin(adminData);
-    } catch (error) {
-      console.error('验证管理员身份失败:', error);
-      // 捕获到异常也不跳转，避免误跳转
-    } finally {
-      setLoading(false);
-    }
-  }, [router, pathname, admin]);
-
   useEffect(() => {
+    let isMounted = true;
+    
+    const checkAdminAuth = async () => {
+      try {
+        const { admin: adminData, error } = await getCurrentAdminWithError();
+        
+        // 组件已卸载，不更新状态
+        if (!isMounted) return;
+        
+        if (error) {
+          // 只有认证相关错误才跳转登录页
+          if (error === 'not_logged_in' || error === 'not_admin') {
+            if (pathname !== '/admin/login') {
+              router.push('/admin/login');
+            }
+          } else if (error === 'network_error') {
+            // 网络错误不跳转，只记录日志
+            console.warn('网络错误，保持当前状态');
+          }
+          setLoading(false);
+          return;
+        }
+        
+        setAdmin(adminData);
+        setLoading(false);
+      } catch (error) {
+        console.error('验证管理员身份失败:', error);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     checkAdminAuth();
-  }, [checkAdminAuth]);
+    
+    // 清理函数，防止组件卸载后更新状态
+    return () => {
+      isMounted = false;
+    };
+  }, [router, pathname]); // ✅ 移除 admin 依赖，只在路由变化时重新检查
 
   const handleLogout = async () => {
     try {
