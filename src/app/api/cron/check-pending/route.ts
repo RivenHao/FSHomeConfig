@@ -19,8 +19,11 @@ const TABLES = {
   USER_PARTICIPATIONS: 'user_participations',
 } as const;
 
-// 运营邮箱
-const OPERATOR_EMAIL = process.env.OPERATOR_EMAIL || 'freestyle_hao4314@163.com';
+// 运营邮箱（支持多个，用逗号分隔）
+const OPERATOR_EMAILS = (process.env.OPERATOR_EMAILS || 'freestyle_hao4314@163.com')
+  .split(',')
+  .map(email => email.trim())
+  .filter(email => email.length > 0);
 
 // 后台系统地址
 const ADMIN_URL = process.env.ADMIN_URL || 'https://fs-home-config.vercel.app/';
@@ -212,7 +215,7 @@ async function sendNotificationEmail(content: { html: string; text: string; tota
   try {
     const { data, error } = await resend.emails.send({
       from: 'FSHOME <noreply@resend.dev>', // 使用 Resend 的默认发件地址，或配置自己的域名
-      to: [OPERATOR_EMAIL],
+      to: OPERATOR_EMAILS, // 支持多个运营邮箱
       subject: `【FSHOME】有 ${content.totalPending} 项内容待审核`,
       html: content.html,
       text: content.text,
