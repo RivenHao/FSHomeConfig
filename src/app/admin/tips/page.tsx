@@ -17,6 +17,7 @@ export default function TipsPage() {
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedTip, setSelectedTip] = useState<MoveTip | null>(null);
   const [reviewForm] = Form.useForm();
   const [pagination, setPagination] = useState({
@@ -122,13 +123,19 @@ export default function TipsPage() {
       <Tag color="orange">待审核</Tag>;
   };
 
+  // 查看心得详情
+  const handleViewTip = (tip: MoveTip) => {
+    setSelectedTip(tip);
+    setViewModalVisible(true);
+  };
+
   const columns = [
     {
       title: '用户信息',
       key: 'user_info',
       fixed: 'left' as const,
       width: 200,
-      render: (record: MoveTip) => (
+      render: (_: unknown, record: MoveTip) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div>
             <div style={{ fontWeight: 'bold' }}>
@@ -144,7 +151,7 @@ export default function TipsPage() {
     {
       title: '招式信息',
       key: 'move_info',
-      render: (record: MoveTip) => (
+      render: (_: unknown, record: MoveTip) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
             {record.moves?.move_name || '未知招式'}
@@ -190,7 +197,7 @@ export default function TipsPage() {
       key: 'actions',
       fixed: 'right' as const,
       width: 200,
-      render: (record: MoveTip) => (
+      render: (_: unknown, record: MoveTip) => (
         <Space>
           <Button
             type="link"
@@ -212,39 +219,6 @@ export default function TipsPage() {
       ),
     },
   ];
-
-  const handleViewTip = (tip: MoveTip) => {
-    Modal.info({
-      title: '心得详情',
-      width: 600,
-      content: (
-        <div>
-          <div style={{ marginBottom: 16 }}>
-            <strong>用户：</strong>{tip.user_profiles?.nickname || tip.user_profiles?.email}
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <strong>招式：</strong>{tip.moves?.move_name}
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <strong>心得内容：</strong>
-            <div style={{ 
-              marginTop: 8, 
-              padding: 12, 
-              background: '#f5f5f5', 
-              borderRadius: 4,
-              whiteSpace: 'pre-wrap'
-            }}>
-              {tip.tip_content}
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <strong>提交时间：</strong>
-            {tip.created_at ? dayjs(tip.created_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
-          </div>
-        </div>
-      ),
-    });
-  };
 
   return (
     <div>
@@ -306,6 +280,49 @@ export default function TipsPage() {
           onChange={handleTableChange}
         />
       </Card>
+
+      {/* 查看详情弹窗 */}
+      <Modal
+        title="心得详情"
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        footer={
+          <Button onClick={() => setViewModalVisible(false)}>
+            关闭
+          </Button>
+        }
+        width={600}
+      >
+        {selectedTip && (
+          <div>
+            <div style={{ marginBottom: 16 }}>
+              <strong>用户：</strong>{selectedTip.user_profiles?.nickname || selectedTip.user_profiles?.email}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <strong>招式：</strong>{selectedTip.moves?.move_name}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <strong>状态：</strong>{getStatusTag(selectedTip.is_approved || false)}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <strong>心得内容：</strong>
+              <div style={{ 
+                marginTop: 8, 
+                padding: 12, 
+                background: '#f5f5f5', 
+                borderRadius: 4,
+                whiteSpace: 'pre-wrap'
+              }}>
+                {selectedTip.tip_content}
+              </div>
+            </div>
+            <div>
+              <strong>提交时间：</strong>
+              {selectedTip.created_at ? dayjs(selectedTip.created_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* 审核弹窗 */}
       <Modal
