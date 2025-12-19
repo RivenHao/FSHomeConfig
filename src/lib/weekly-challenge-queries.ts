@@ -23,6 +23,7 @@ import {
   ParticipationFilters,
   SuggestionFilters,
 } from '@/types/weekly-challenge';
+import { grantSeasonRankHonor } from './honor-utils';
 
 // ==================== 赛季管理 ====================
 
@@ -209,16 +210,26 @@ export async function endSeasonAndGenerateLeaderboard(seasonId: string): Promise
 
     console.log('现有排行榜用户数:', existingLeaderboard?.length || 0);
 
+    // 获取赛季信息（用于荣誉名称）
+    const { data: seasonInfo } = await supabase
+      .from('seasons')
+      .select('name')
+      .eq('id', seasonId)
+      .single();
+    
+    const seasonName = seasonInfo?.name || '未知赛季';
+
     // 2. 更新最终排名和获奖状态
     if (existingLeaderboard && existingLeaderboard.length > 0) {
       for (let i = 0; i < existingLeaderboard.length; i++) {
         const record = existingLeaderboard[i];
         const isWinner = i < 3; // 前3名为获奖者
+        const rank = i + 1;
         
         const { error: updateError } = await supabase
           .from('season_leaderboards')
           .update({
-            rank_position: i + 1,
+            rank_position: rank,
             is_winner: isWinner,
             prize_status: isWinner ? 'pending' : 'none',
           })
@@ -227,8 +238,13 @@ export async function endSeasonAndGenerateLeaderboard(seasonId: string): Promise
         if (updateError) {
           console.error(`更新排名失败 (user: ${record.user_id}):`, updateError);
         }
+
+        // 给前三名授予赛季荣誉
+        if (isWinner) {
+          await grantSeasonRankHonor(record.user_id, seasonId, seasonName, rank as 1 | 2 | 3);
+        }
       }
-      console.log('排名已更新');
+      console.log('排名已更新，前三名荣誉已授予');
     }
 
     // 3. 更新赛季状态为 ended
