@@ -14,6 +14,7 @@ import {
   FireOutlined,
   TrophyOutlined,
   AuditOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentAdminWithError, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
@@ -153,6 +154,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       key: '/admin/notifications',
       icon: <BellOutlined />,
       label: '系统通知推送',
+    },
+    {
+      key: '/admin/feedback',
+      icon: <MessageOutlined />,
+      label: '意见反馈',
     },
     {
       key: 'weekly-challenge',

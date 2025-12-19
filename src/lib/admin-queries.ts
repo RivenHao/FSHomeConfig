@@ -1,6 +1,7 @@
 import { supabase, TABLES } from './supabase';
 import { PaginationParams, FilterParams, Move, MoveCategory, MoveSubCategory } from '@/types/admin';
 import { getCurrentAdmin } from './admin-auth';
+import { checkAndGrantMilestoneHonor } from './honor-utils';
 
 // 获取用户列表
 export async function getUsersList(params: PaginationParams & FilterParams) {
@@ -359,6 +360,11 @@ export async function reviewVideoSubmission(id: string, status: 'approved' | 're
         }
 
         console.log('当前用户统计:', currentProfile);
+
+        // 检查并授予里程碑荣誉（解锁数+1，因为刚刚添加了新解锁）
+        const newUnlockCount = (currentProfile.unlocked_moves_count || 0) + 1;
+        await checkAndGrantMilestoneHonor(submission.user_id, newUnlockCount);
+        console.log('已检查里程碑荣誉，当前解锁数:', newUnlockCount);
 
         // 注释掉手动更新用户统计的代码，使用触发器自动处理
         /*
