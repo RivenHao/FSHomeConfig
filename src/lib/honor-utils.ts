@@ -2,11 +2,12 @@ import { supabase } from "./supabase";
 
 // 里程碑配置
 export const MILESTONES = [
-  50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+  10, 50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
 ];
 
 // 荣誉类型
 export type HonorType =
+  | "milestone_10"
   | "milestone_50"
   | "milestone_100"
   | "milestone_150"
@@ -30,6 +31,11 @@ export const HONOR_CONFIG: Record<
   HonorType,
   { name: string; icon: string; category: HonorCategory }
 > = {
+  milestone_10: {
+    name: "解锁招式突破10！",
+    icon: "milestone_10.png",
+    category: "milestone",
+  },
   milestone_50: {
     name: "解锁招式突破50！",
     icon: "milestone_50.png",
