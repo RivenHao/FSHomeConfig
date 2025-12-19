@@ -190,117 +190,62 @@ export async function deleteSeason(id: string): Promise<ApiResponse<void>> {
   }
 }
 
-// 结束赛季并生成排行榜
+// 结束赛季并最终确定排行榜
 export async function endSeasonAndGenerateLeaderboard(seasonId: string): Promise<ApiResponse<{ message: string; leaderboardCount: number }>> {
   try {
-    console.log('开始结束赛季并生成排行榜，赛季ID:', seasonId);
+    console.log('开始结束赛季，赛季ID:', seasonId);
 
-    // 1. 从 user_points 表获取该赛季所有积分记录
-    const { data: pointsData, error: pointsError } = await supabase
-      .from('user_points')
-      .select('user_id, points, point_type')
-      .eq('season_id', seasonId);
-
-    if (pointsError) {
-      console.error('获取积分数据失败:', pointsError);
-      return { error: '获取积分数据失败: ' + pointsError.message };
-    }
-
-    console.log('获取到的积分记录数:', pointsData?.length || 0);
-
-    // 2. 按用户聚合积分
-    const userPointsMap = new Map<string, {
-      total_points: number;
-      participation_count: number;
-      simple_completions: number;
-      hard_completions: number;
-    }>();
-
-    if (pointsData && pointsData.length > 0) {
-      pointsData.forEach(record => {
-        const existing = userPointsMap.get(record.user_id) || {
-          total_points: 0,
-          participation_count: 0,
-          simple_completions: 0,
-          hard_completions: 0,
-        };
-
-        existing.total_points += record.points || 0;
-        
-        if (record.point_type === 'participation') {
-          existing.participation_count += 1;
-        } else if (record.point_type === 'simple_completion') {
-          existing.simple_completions += 1;
-        } else if (record.point_type === 'hard_completion') {
-          existing.hard_completions += 1;
-        }
-
-        userPointsMap.set(record.user_id, existing);
-      });
-    }
-
-    console.log('聚合后的用户数:', userPointsMap.size);
-
-    // 3. 转换为数组并按积分排序
-    const sortedUsers = Array.from(userPointsMap.entries())
-      .map(([user_id, stats]) => ({
-        user_id,
-        ...stats,
-      }))
-      .sort((a, b) => b.total_points - a.total_points);
-
-    // 4. 删除该赛季现有的排行榜数据（如果有）
-    const { error: deleteError } = await supabase
+    // 1. 获取该赛季现有的排行榜数据（已在审核通过时实时更新）
+    const { data: existingLeaderboard, error: fetchError } = await supabase
       .from('season_leaderboards')
-      .delete()
-      .eq('season_id', seasonId);
+      .select('id, user_id, total_points')
+      .eq('season_id', seasonId)
+      .order('total_points', { ascending: false });
 
-    if (deleteError) {
-      console.error('删除旧排行榜数据失败:', deleteError);
-      return { error: '删除旧排行榜数据失败: ' + deleteError.message };
+    if (fetchError) {
+      console.error('获取排行榜数据失败:', fetchError);
+      return { error: '获取排行榜数据失败: ' + fetchError.message };
     }
 
-    // 5. 插入新的排行榜数据
-    if (sortedUsers.length > 0) {
-      const leaderboardEntries = sortedUsers.map((user, index) => ({
-        season_id: seasonId,
-        user_id: user.user_id,
-        total_points: user.total_points,
-        rank_position: index + 1,
-        participation_count: user.participation_count,
-        simple_completions: user.simple_completions,
-        hard_completions: user.hard_completions,
-        is_winner: index < 3, // 前3名标记为获奖
-        prize_status: index < 3 ? 'pending' : 'none',
-      }));
+    console.log('现有排行榜用户数:', existingLeaderboard?.length || 0);
 
-      const { error: insertError } = await supabase
-        .from('season_leaderboards')
-        .insert(leaderboardEntries);
+    // 2. 更新最终排名和获奖状态
+    if (existingLeaderboard && existingLeaderboard.length > 0) {
+      for (let i = 0; i < existingLeaderboard.length; i++) {
+        const record = existingLeaderboard[i];
+        const isWinner = i < 3; // 前3名为获奖者
+        
+        const { error: updateError } = await supabase
+          .from('season_leaderboards')
+          .update({
+            rank_position: i + 1,
+            is_winner: isWinner,
+            prize_status: isWinner ? 'pending' : 'none',
+          })
+          .eq('id', record.id);
 
-      if (insertError) {
-        console.error('插入排行榜数据失败:', insertError);
-        return { error: '插入排行榜数据失败: ' + insertError.message };
+        if (updateError) {
+          console.error(`更新排名失败 (user: ${record.user_id}):`, updateError);
+        }
       }
-
-      console.log('成功插入排行榜数据，共', leaderboardEntries.length, '条');
+      console.log('排名已更新');
     }
 
-    // 6. 更新赛季状态为 ended
-    const { error: updateError } = await supabase
+    // 3. 更新赛季状态为 ended
+    const { error: updateSeasonError } = await supabase
       .from('seasons')
       .update({ status: 'ended', updated_at: new Date().toISOString() })
       .eq('id', seasonId);
 
-    if (updateError) {
-      console.error('更新赛季状态失败:', updateError);
-      return { error: '更新赛季状态失败: ' + updateError.message };
+    if (updateSeasonError) {
+      console.error('更新赛季状态失败:', updateSeasonError);
+      return { error: '更新赛季状态失败: ' + updateSeasonError.message };
     }
 
     return {
       data: {
-        message: '赛季已结束，排行榜已生成',
-        leaderboardCount: sortedUsers.length,
+        message: '赛季已结束，排行榜已确定',
+        leaderboardCount: existingLeaderboard?.length || 0,
       }
     };
   } catch (error) {
@@ -726,6 +671,105 @@ export async function getParticipations(
   }
 }
 
+// 更新赛季排行榜（审核通过后调用）
+async function updateSeasonLeaderboard(userId: string, seasonId: string) {
+  try {
+    // 1. 计算该用户在该赛季的总积分和模式完成次数
+    const { data: pointsData } = await supabase
+      .from('user_points')
+      .select('points, point_type')
+      .eq('user_id', userId)
+      .eq('season_id', seasonId);
+
+    let totalPoints = 0;
+    let simpleCompletions = 0;
+    let hardCompletions = 0;
+
+    (pointsData || []).forEach(p => {
+      totalPoints += p.points || 0;
+      if (p.point_type === 'simple_completion') {
+        simpleCompletions += 1;
+      } else if (p.point_type === 'hard_completion') {
+        hardCompletions += 1;
+      }
+    });
+
+    // 2. 计算该用户在该赛季的视频数量
+    const { data: challenges } = await supabase
+      .from('weekly_challenges')
+      .select('id')
+      .eq('season_id', seasonId);
+
+    const challengeIds = (challenges || []).map(c => c.id);
+    
+    let videoCount = 0;
+    if (challengeIds.length > 0) {
+      const { count } = await supabase
+        .from('user_participations')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .in('challenge_id', challengeIds)
+        .eq('status', 'approved');
+      videoCount = count || 0;
+    }
+
+    // 3. 检查排行榜记录是否存在
+    const { data: existingRecord } = await supabase
+      .from('season_leaderboards')
+      .select('id')
+      .eq('season_id', seasonId)
+      .eq('user_id', userId)
+      .single();
+
+    const leaderboardData = {
+      total_points: totalPoints,
+      video_count: videoCount,
+      simple_completions: simpleCompletions,
+      hard_completions: hardCompletions,
+      participation_count: simpleCompletions + hardCompletions, // 兼容历史字段
+    };
+
+    if (existingRecord) {
+      // 更新现有记录
+      await supabase
+        .from('season_leaderboards')
+        .update(leaderboardData)
+        .eq('id', existingRecord.id);
+    } else {
+      // 创建新记录（rank_position 暂时设为 0，后面统一更新）
+      await supabase
+        .from('season_leaderboards')
+        .insert({
+          season_id: seasonId,
+          user_id: userId,
+          ...leaderboardData,
+          rank_position: 0,
+        });
+    }
+
+    // 4. 重新计算该赛季所有用户的排名
+    const { data: allRecords } = await supabase
+      .from('season_leaderboards')
+      .select('id, total_points')
+      .eq('season_id', seasonId)
+      .order('total_points', { ascending: false });
+
+    if (allRecords && allRecords.length > 0) {
+      // 批量更新排名
+      for (let i = 0; i < allRecords.length; i++) {
+        await supabase
+          .from('season_leaderboards')
+          .update({ rank_position: i + 1 })
+          .eq('id', allRecords[i].id);
+      }
+    }
+
+    console.log('排行榜已更新:', { userId, seasonId, totalPoints, videoCount, simpleCompletions, hardCompletions });
+  } catch (error) {
+    console.error('更新排行榜失败:', error);
+  }
+}
+
 // 审核参与记录
 export async function reviewParticipation(id: string, reviewData: ReviewParticipationRequest): Promise<ApiResponse<UserParticipation>> {
   try {
@@ -873,9 +917,12 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
           }
         }
       }
+
+      // 5. 更新 season_leaderboards 排行榜表（实时更新）
+      await updateSeasonLeaderboard(participation.user_id, seasonId);
     }
 
-    // 4. 如果从 approved 改为其他状态，删除积分记录
+    // 4. 如果从 approved 改为其他状态，删除积分记录并更新排行榜
     if (participation.status === 'approved' && reviewData.status !== 'approved') {
       const { error: deleteError } = await supabase
         .from('user_points')
@@ -886,6 +933,12 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
         console.error('删除积分记录失败:', deleteError);
       } else {
         console.log('已删除关联的积分记录');
+      }
+
+      // 更新排行榜（减少视频数量和积分）
+      const seasonId = participation.weekly_challenges?.season_id;
+      if (seasonId) {
+        await updateSeasonLeaderboard(participation.user_id, seasonId);
       }
     }
 

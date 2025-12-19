@@ -43,95 +43,30 @@ export default function LeaderboardPage() {
     }
   };
 
-  // 加载排行榜数据
+  // 加载排行榜数据（直接从 season_leaderboards 获取，审核时已实时更新）
   const loadLeaderboard = async (seasonId: string) => {
     if (!seasonId) return;
 
     setLoading(true);
     try {
-      // 1. 先尝试从 season_leaderboards 获取数据（适用于已结束的赛季）
+      // 直接从 season_leaderboards 获取数据（审核通过时已实时更新）
       const { data: leaderboardData, error: leaderboardError } = await supabase
         .from('season_leaderboards')
         .select('*')
         .eq('season_id', seasonId)
-        .order('rank_position');
+        .order('total_points', { ascending: false });
 
-      let finalData: SeasonLeaderboard[] = [];
-
-      // 2. 如果 season_leaderboards 有数据，直接使用
-      if (!leaderboardError && leaderboardData && leaderboardData.length > 0) {
-        console.log('从 season_leaderboards 获取到数据:', leaderboardData.length, '条');
-        finalData = leaderboardData;
-      } else {
-        // 3. 如果没有数据，从 user_points 表动态计算（适用于进行中的赛季）
-        console.log('season_leaderboards 无数据，从 user_points 动态计算...');
-        
-        const { data: pointsData, error: pointsError } = await supabase
-          .from('user_points')
-          .select('user_id, points, point_type')
-          .eq('season_id', seasonId);
-
-        if (pointsError) {
-          console.error('获取积分数据失败:', pointsError);
-          message.error('获取积分数据失败');
-          return;
-        }
-
-        if (pointsData && pointsData.length > 0) {
-          // 按用户聚合积分
-          const userPointsMap = new Map<string, {
-            total_points: number;
-            participation_count: number;
-            simple_completions: number;
-            hard_completions: number;
-          }>();
-
-          pointsData.forEach(record => {
-            const existing = userPointsMap.get(record.user_id) || {
-              total_points: 0,
-              participation_count: 0,
-              simple_completions: 0,
-              hard_completions: 0,
-            };
-
-            existing.total_points += record.points || 0;
-            
-            if (record.point_type === 'participation') {
-              existing.participation_count += 1;
-            } else if (record.point_type === 'simple_completion') {
-              existing.simple_completions += 1;
-              existing.participation_count += 1;
-            } else if (record.point_type === 'hard_completion') {
-              existing.hard_completions += 1;
-              existing.participation_count += 1;
-            }
-
-            userPointsMap.set(record.user_id, existing);
-          });
-
-          // 转换为数组并排序
-          const sortedUsers = Array.from(userPointsMap.entries())
-            .map(([user_id, stats]) => ({
-              id: `temp-${user_id}`,
-              season_id: seasonId,
-              user_id,
-              ...stats,
-              rank_position: 0,
-              is_winner: false,
-              prize_status: 'none' as const,
-              created_at: new Date().toISOString(),
-            }))
-            .sort((a, b) => b.total_points - a.total_points);
-
-          // 添加排名
-          finalData = sortedUsers.map((item, index) => ({
-            ...item,
-            rank_position: index + 1,
-          }));
-
-          console.log('从 user_points 动态计算得到:', finalData.length, '条记录');
-        }
+      if (leaderboardError) {
+        console.error('获取排行榜数据失败:', leaderboardError);
+        message.error('获取排行榜数据失败');
+        return;
       }
+
+      const finalData: SeasonLeaderboard[] = (leaderboardData || []).map((item, index) => ({
+        ...item,
+        video_count: item.video_count || 0,
+        rank_position: index + 1,  // 根据积分重新计算排名
+      }));
 
       // 4. 获取用户信息并合并
       let enrichedData = finalData;
@@ -308,16 +243,16 @@ export default function LeaderboardPage() {
       render: (record: SeasonLeaderboard) => (
         <div>
           <div style={{ marginBottom: 4 }}>
-            <span style={{ color: '#666' }}>总参与: </span>
-            <span style={{ fontWeight: 'bold' }}>{record.participation_count}</span>
+            <span style={{ color: '#666' }}>上传视频: </span>
+            <span style={{ fontWeight: 'bold' }}>{record.video_count || 0}</span>
           </div>
           <div style={{ marginBottom: 4 }}>
-            <span style={{ color: '#52c41a' }}>简单: </span>
-            <span style={{ fontWeight: 'bold' }}>{record.simple_completions}</span>
+            <span style={{ color: '#52c41a' }}>简单模式: </span>
+            <span style={{ fontWeight: 'bold' }}>{record.simple_completions || 0}</span>
           </div>
           <div>
-            <span style={{ color: '#f5222d' }}>困难: </span>
-            <span style={{ fontWeight: 'bold' }}>{record.hard_completions}</span>
+            <span style={{ color: '#f5222d' }}>困难模式: </span>
+            <span style={{ fontWeight: 'bold' }}>{record.hard_completions || 0}</span>
           </div>
         </div>
       ),

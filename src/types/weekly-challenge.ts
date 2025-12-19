@@ -106,7 +106,8 @@ export interface SeasonLeaderboard {
   user_id: string;
   total_points: number;
   rank_position: number;
-  participation_count: number;
+  video_count: number;  // 上传视频数量（审核通过的）
+  participation_count: number;  // 历史字段，保留兼容
   simple_completions: number;
   hard_completions: number;
   is_winner: boolean;
