@@ -26,6 +26,7 @@ export default function ParticipationsPage() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedParticipation, setSelectedParticipation] = useState<UserParticipation | null>(null);
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
   const [filters, setFilters] = useState({
     status: 'pending',
     challenge_id: '',
@@ -102,6 +103,7 @@ export default function ParticipationsPage() {
   const handleSubmitReview = async (values: { status: 'approved' | 'rejected'; admin_note?: string; bonus_points?: number }) => {
     if (!selectedParticipation) return;
 
+    setSubmitting(true);
     try {
       const reviewData: ReviewParticipationRequest = {
         status: values.status,
@@ -130,6 +132,8 @@ export default function ParticipationsPage() {
     } catch (error) {
       console.error('提交审核失败:', error);
       message.error('提交审核失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -607,14 +611,14 @@ export default function ParticipationsPage() {
 
               <Form.Item>
                 <Space>
-                  <Button type="primary" htmlType="submit">
+                  <Button type="primary" htmlType="submit" loading={submitting}>
                     提交审核
                   </Button>
                   <Button onClick={() => {
                     setReviewModalVisible(false);
                     form.resetFields();
                     setSelectedParticipation(null);
-                  }}>
+                  }} disabled={submitting}>
                     取消
                   </Button>
                 </Space>

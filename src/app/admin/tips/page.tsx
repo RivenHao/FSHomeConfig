@@ -20,6 +20,7 @@ export default function TipsPage() {
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedTip, setSelectedTip] = useState<MoveTip | null>(null);
   const [reviewForm] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -96,6 +97,7 @@ export default function TipsPage() {
   const handleReviewSubmit = async (values: { isApproved: boolean }) => {
     if (!selectedTip) return;
 
+    setSubmitting(true);
     try {
       const result = await reviewMoveTip(
         selectedTip.id,
@@ -114,6 +116,8 @@ export default function TipsPage() {
     } catch (error) {
       console.error('审核操作失败:', error);
       message.error('审核操作失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -372,10 +376,10 @@ export default function TipsPage() {
               
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                 <Space>
-                  <Button onClick={() => setReviewModalVisible(false)}>
+                  <Button onClick={() => setReviewModalVisible(false)} disabled={submitting}>
                     取消
                   </Button>
-                  <Button type="primary" htmlType="submit">
+                  <Button type="primary" htmlType="submit" loading={submitting}>
                     提交审核
                   </Button>
                 </Space>
