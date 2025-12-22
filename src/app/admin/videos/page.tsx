@@ -22,6 +22,7 @@ export default function VideosPage() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<UserMoveSubmission | null>(null);
   const [reviewForm] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -144,6 +145,7 @@ export default function VideosPage() {
   const handleReviewSubmit = async (values: { action: string; note?: string }) => {
     if (!selectedVideo) return;
 
+    setSubmitting(true);
     try {
       const result = await reviewVideoSubmission(
         selectedVideo.id,
@@ -163,6 +165,8 @@ export default function VideosPage() {
     } catch (error) {
       console.error('审核操作失败:', error);
       message.error('审核操作失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -363,10 +367,10 @@ export default function VideosPage() {
               
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                 <Space>
-                  <Button onClick={() => setReviewModalVisible(false)}>
+                  <Button onClick={() => setReviewModalVisible(false)} disabled={submitting}>
                     取消
                   </Button>
-                  <Button type="primary" htmlType="submit">
+                  <Button type="primary" htmlType="submit" loading={submitting}>
                     提交审核
                   </Button>
                 </Space>

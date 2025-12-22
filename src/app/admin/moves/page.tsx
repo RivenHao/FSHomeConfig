@@ -43,6 +43,7 @@ export default function MovesPage() {
   const [isVideoDragOver, setIsVideoDragOver] = useState(false);
   const [videoUploading, setVideoUploading] = useState(false);
   const videoFileInputRef = useRef<HTMLInputElement>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // GIF文件验证
   const validateGifFile = (file: File): boolean => {
@@ -582,6 +583,7 @@ export default function MovesPage() {
     tags?: string[];
     is_teaching: boolean;
   }) => {
+    setSubmitting(true);
     try {
       // 如果选择了新的GIF文件，先上传
       let gifUrl = values.move_gif || '';
@@ -652,6 +654,8 @@ export default function MovesPage() {
     } catch (error) {
       console.error('保存招式失败:', error);
       message.error('保存招式失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -906,6 +910,9 @@ export default function MovesPage() {
         onCancel={handleModalClose}
         footer={null}
         width={600}
+        closable={!submitting && !gifUploading && !videoUploading}
+        maskClosable={!submitting && !gifUploading && !videoUploading}
+        keyboard={!submitting && !gifUploading && !videoUploading}
       >
         <Form
           form={form}
@@ -1243,10 +1250,10 @@ export default function MovesPage() {
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
-              <Button onClick={handleModalClose}>
+              <Button onClick={handleModalClose} disabled={submitting || gifUploading || videoUploading}>
                 取消
               </Button>
-              <Button type="primary" htmlType="submit">
+              <Button type="primary" htmlType="submit" loading={submitting || gifUploading || videoUploading}>
                 {editingMove ? '更新' : '创建'}
               </Button>
             </Space>

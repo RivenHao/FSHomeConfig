@@ -31,6 +31,7 @@ export default function SeasonsPage() {
     const [editingSeason, setEditingSeason] = useState<Season | null>(null);
     const [form] = Form.useForm();
     const [stats, setStats] = useState<SeasonStats | null>(null);
+    const [submitting, setSubmitting] = useState(false);
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -184,6 +185,7 @@ export default function SeasonsPage() {
         prize_description?: string;
         status?: string;
     }) => {
+        setSubmitting(true);
         try {
             const seasonData = {
                 name: values.name,
@@ -220,6 +222,8 @@ export default function SeasonsPage() {
         } catch (error) {
             console.error('保存赛季失败:', error);
             message.error('保存赛季失败');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -577,13 +581,13 @@ export default function SeasonsPage() {
 
                     <Form.Item>
                         <Space>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" loading={submitting}>
                                 {editingSeason ? '更新' : '创建'}
                             </Button>
                             <Button onClick={() => {
                                 setModalVisible(false);
                                 form.resetFields();
-                            }}>
+                            }} disabled={submitting}>
                                 取消
                             </Button>
                         </Space>

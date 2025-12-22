@@ -45,6 +45,8 @@ export default function ChallengesPage() {
     const [form] = Form.useForm();
     const [modeForm] = Form.useForm();
     const [stats, setStats] = useState<ChallengeStats | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [modeSubmitting, setModeSubmitting] = useState(false);
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -228,6 +230,7 @@ export default function ChallengesPage() {
         official_video_url?: string;
         status?: string;
     }) => {
+        setSubmitting(true);
         try {
             const challengeData = {
                 season_id: values.season_id,
@@ -265,6 +268,8 @@ export default function ChallengesPage() {
         } catch (error) {
             console.error('保存挑战赛失败:', error);
             message.error('保存挑战赛失败');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -325,6 +330,7 @@ export default function ChallengesPage() {
         points_reward: number;
         demo_video_url?: string;
     }) => {
+        setModeSubmitting(true);
         try {
             // 检查是否已存在相同类型的模式（仅在新增时检查）
             if (!editingMode) {
@@ -394,6 +400,8 @@ export default function ChallengesPage() {
         } catch (error) {
             console.error('保存挑战模式失败:', error);
             message.error('保存挑战模式失败');
+        } finally {
+            setModeSubmitting(false);
         }
     };
 
@@ -884,13 +892,13 @@ export default function ChallengesPage() {
 
                     <Form.Item>
                         <Space>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" loading={submitting}>
                                 {editingChallenge ? '更新' : '创建'}
                             </Button>
                             <Button onClick={() => {
                                 setModalVisible(false);
                                 form.resetFields();
-                            }}>
+                            }} disabled={submitting}>
                                 取消
                             </Button>
                         </Space>
@@ -1043,13 +1051,13 @@ export default function ChallengesPage() {
 
                     <Form.Item>
                         <Space>
-                            <Button type="primary" htmlType="submit">
+                            <Button type="primary" htmlType="submit" loading={modeSubmitting}>
                                 {editingMode ? '更新' : '创建'}
                             </Button>
                             <Button onClick={() => {
                                 setModeModalVisible(false);
                                 modeForm.resetFields();
-                            }}>
+                            }} disabled={modeSubmitting}>
                                 取消
                             </Button>
                         </Space>
