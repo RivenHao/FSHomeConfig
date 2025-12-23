@@ -771,7 +771,15 @@ async function updateSeasonLeaderboard(userId: string, seasonId: string) {
       .order('total_points', { ascending: false });
 
     if (allRecords && allRecords.length > 0) {
-      // 批量更新排名
+      // 先把所有排名设为临时负值（避免唯一约束冲突）
+      for (let i = 0; i < allRecords.length; i++) {
+        await supabase
+          .from('season_leaderboards')
+          .update({ rank_position: -(i + 1) })
+          .eq('id', allRecords[i].id);
+      }
+      
+      // 再设置正确的排名
       for (let i = 0; i < allRecords.length; i++) {
         await supabase
           .from('season_leaderboards')
