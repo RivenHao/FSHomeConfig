@@ -98,10 +98,11 @@ export async function getMoveTips(params: PaginationParams & FilterParams) {
   // 应用筛选条件
   if (params.status) {
     if (params.status === 'approved') {
-      query = query.eq('is_approved', true);
+      query = query.eq('review_status', 'approved');
     } else if (params.status === 'pending') {
-      // 待审核：is_approved = false
-      query = query.eq('is_approved', false);
+      query = query.eq('review_status', 'pending');
+    } else if (params.status === 'rejected') {
+      query = query.eq('review_status', 'rejected');
     }
   }
 
@@ -398,13 +399,15 @@ export async function reviewVideoSubmission(id: string, status: 'approved' | 're
 }
 
 // 审核心得
-export async function reviewMoveTip(id: string, isApproved: boolean) {
+export async function reviewMoveTip(id: string, status: 'approved' | 'rejected') {
   try {
-    // 最简单的更新，只更新 is_approved 字段，不使用 select
+    const isApproved = status === 'approved';
     const { error } = await supabase
       .from(TABLES.MOVE_TIPS)
       .update({
-        is_approved: isApproved
+        is_approved: isApproved,
+        review_status: status,
+        updated_at: new Date().toISOString()
       })
       .eq('id', id);
 
@@ -413,7 +416,6 @@ export async function reviewMoveTip(id: string, isApproved: boolean) {
       return { data: null, error };
     }
 
-    // 更新成功，返回成功状态
     return { data: { success: true }, error: null };
   } catch (error) {
     console.error('审核心得异常:', error);

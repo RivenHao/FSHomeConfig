@@ -74,6 +74,7 @@ export interface MoveTip {
   user_id: string;
   tip_content: string;
   is_approved: boolean;
+  review_status: 'pending' | 'approved' | 'rejected';
   created_at: string | null;
   updated_at: string | null;
   // 关联数据
