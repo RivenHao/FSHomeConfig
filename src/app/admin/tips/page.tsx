@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Input, Select, Button, Space, Tag, Typography, Row, Col, message, Modal, Form, Switch } from 'antd';
+import { Card, Table, Input, Select, Button, Space, Tag, Typography, Row, Col, message, Modal, Form } from 'antd';
 import { ReloadOutlined, EyeOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { getMoveTips, reviewMoveTip } from '@/lib/admin-queries';
 import { MoveTip } from '@/types/admin';
@@ -94,14 +94,14 @@ export default function TipsPage() {
     reviewForm.resetFields();
   };
 
-  const handleReviewSubmit = async (values: { isApproved: boolean }) => {
+  const handleReviewSubmit = async (values: { status: 'approved' | 'rejected' }) => {
     if (!selectedTip) return;
 
     setSubmitting(true);
     try {
       const result = await reviewMoveTip(
         selectedTip.id,
-        values.isApproved
+        values.status
       );
 
       if (result.error) {
@@ -121,10 +121,15 @@ export default function TipsPage() {
     }
   };
 
-  const getStatusTag = (isApproved: boolean) => {
-    return isApproved ? 
-      <Tag color="green">已通过</Tag> : 
-      <Tag color="orange">待审核</Tag>;
+  const getStatusTag = (reviewStatus: string) => {
+    switch (reviewStatus) {
+      case 'approved':
+        return <Tag color="green">已通过</Tag>;
+      case 'rejected':
+        return <Tag color="red">已拒绝</Tag>;
+      default:
+        return <Tag color="orange">待审核</Tag>;
+    }
   };
 
   // 查看心得详情
@@ -186,9 +191,9 @@ export default function TipsPage() {
     },
     {
       title: '状态',
-      dataIndex: 'is_approved',
-      key: 'is_approved',
-      render: (isApproved: boolean) => getStatusTag(isApproved),
+      dataIndex: 'review_status',
+      key: 'review_status',
+      render: (reviewStatus: string) => getStatusTag(reviewStatus || 'pending'),
     },
     {
       title: '提交时间',
@@ -210,7 +215,7 @@ export default function TipsPage() {
           >
             查看
           </Button>
-          {!record.is_approved && (
+          {record.review_status !== 'approved' && record.review_status !== 'rejected' && (
             <Button
               type="primary"
               icon={<CheckCircleOutlined />}
@@ -251,6 +256,7 @@ export default function TipsPage() {
             >
               <Option value="pending">待审核</Option>
               <Option value="approved">已通过</Option>
+              <Option value="rejected">已拒绝</Option>
             </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -306,7 +312,7 @@ export default function TipsPage() {
               <strong>招式：</strong>{selectedTip.moves?.move_name}
             </div>
             <div style={{ marginBottom: 16 }}>
-              <strong>状态：</strong>{getStatusTag(selectedTip.is_approved || false)}
+              <strong>状态：</strong>{getStatusTag(selectedTip.review_status || 'pending')}
             </div>
             <div style={{ marginBottom: 16 }}>
               <strong>心得内容：</strong>
@@ -346,7 +352,7 @@ export default function TipsPage() {
             </div>
             <div style={{ marginBottom: 16 }}>
                           <strong>当前状态：</strong>
-            {getStatusTag(selectedTip.is_approved || false)}
+            {getStatusTag(selectedTip.review_status || 'pending')}
             </div>
             <div style={{ marginBottom: 16 }}>
               <strong>心得内容：</strong>
@@ -363,15 +369,15 @@ export default function TipsPage() {
             
             <Form form={reviewForm} onFinish={handleReviewSubmit}>
               <Form.Item
-                name="isApproved"
+                name="status"
                 label="审核结果"
-                valuePropName="checked"
-                initialValue={true}
+                initialValue="approved"
+                rules={[{ required: true, message: '请选择审核结果' }]}
               >
-                <Switch
-                  checkedChildren="通过"
-                  unCheckedChildren="拒绝"
-                />
+                <Select>
+                  <Option value="approved">通过</Option>
+                  <Option value="rejected">拒绝</Option>
+                </Select>
               </Form.Item>
               
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
