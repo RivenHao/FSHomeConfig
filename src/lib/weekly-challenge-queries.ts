@@ -1,6 +1,7 @@
 // 每周挑战赛相关的数据查询函数
 
 import { supabase, TABLES } from './supabase';
+import { sendPushToUser, sendPushToAll } from './push-notifications';
 import {
   Season,
   WeeklyChallenge,
@@ -453,6 +454,13 @@ export async function createChallenge(challengeData: CreateChallengeRequest): Pr
 // 更新挑战赛
 export async function updateChallenge(id: string, challengeData: UpdateChallengeRequest): Promise<ApiResponse<WeeklyChallenge>> {
   try {
+    // 先获取更新前的状态
+    const { data: oldChallenge } = await supabase
+      .from('weekly_challenges')
+      .select('status')
+      .eq('id', id)
+      .single();
+
     const { data, error } = await supabase
       .from('weekly_challenges')
       .update(challengeData)
@@ -463,6 +471,15 @@ export async function updateChallenge(id: string, challengeData: UpdateChallenge
     if (error) {
       console.error('更新挑战赛失败:', error);
       return { error: error.message };
+    }
+
+    // 如果状态从非 active 变为 active，群发推送通知
+    if (oldChallenge?.status !== 'active' && challengeData.status === 'active' && data) {
+      await sendPushToAll(
+        '🔥 新挑战赛上线',
+        `第${data.week_number}周挑战赛「${data.title}」已上线，快来参与吧！`,
+        { type: 'new_challenge', challengeId: id }
+      );
     }
 
     return { data };
@@ -964,6 +981,24 @@ export async function reviewParticipation(id: string, reviewData: ReviewParticip
       if (seasonId) {
         await updateSeasonLeaderboard(participation.user_id, seasonId);
       }
+    }
+
+    // 发送推送通知
+    const modeLabel = participation.challenge_modes?.mode_type === 'simple' ? '简单' : '困难';
+    if (reviewData.status === 'approved') {
+      await sendPushToUser(
+        participation.user_id,
+        '🎉 挑战视频审核通过',
+        `你提交的${modeLabel}模式挑战视频已通过审核！`,
+        { type: 'review_approved', participationId: id }
+      );
+    } else if (reviewData.status === 'rejected') {
+      await sendPushToUser(
+        participation.user_id,
+        '挑战视频审核未通过',
+        `你提交的${modeLabel}模式挑战视频未通过审核${reviewData.admin_note ? `：${reviewData.admin_note}` : ''}`,
+        { type: 'review_rejected', participationId: id }
+      );
     }
 
     return { data };
