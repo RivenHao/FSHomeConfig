@@ -15,6 +15,7 @@ import {
   TrophyOutlined,
   AuditOutlined,
   MessageOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentAdminWithError, adminSignOut, hasSuperAdminAccess } from '@/lib/admin-auth';
@@ -184,6 +185,25 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {
           key: '/admin/weekly-challenge/leaderboard',
           label: '排行榜管理',
+        },
+      ],
+    },
+    {
+      key: 'fun-buzz',
+      icon: <ThunderboltOutlined />,
+      label: 'Fun Buzz 管理',
+      children: [
+        {
+          key: '/admin/fun-buzz/rooms',
+          label: '房间管理',
+        },
+        {
+          key: '/admin/fun-buzz/featured',
+          label: '首页推荐',
+        },
+        {
+          key: '/admin/fun-buzz/logs',
+          label: '操作日志',
         },
       ],
     },

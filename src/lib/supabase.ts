@@ -16,4 +16,10 @@ export const TABLES = {
   COMMUNITY_VIDEOS: 'community_videos',
   ACHIEVEMENT_CATEGORIES: 'achievement_categories',
   ACHIEVEMENTS: 'achievements',
+  // Fun Buzz（skill check）
+  SKILL_CHECKS: 'skill_checks',
+  SKILL_CHECK_ENTRIES: 'skill_check_entries',
+  SKILL_CHECK_COMMENTS: 'skill_check_comments',
+  FUN_BUZZ_FEATURED_ROOMS: 'fun_buzz_featured_rooms',
+  SKILL_CHECK_MODERATION_LOG: 'skill_check_moderation_log',
 } as const;
